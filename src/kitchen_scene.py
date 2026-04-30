@@ -593,7 +593,7 @@ class KitchenScene:
             return
 
         wr_resolution = tuple(wr_config.get("resolution", [256, 256]))
-        wr_position = np.array(wr_config.get("position", [0.05, 0.0, 0.0]))
+        wr_position = np.array(wr_config.get("position", [0.0, 0.0, 0.0]))
         wr_fovy = wr_config.get("fovy", 75)
 
         if "orientation_quat" in wr_config:
@@ -625,9 +625,9 @@ class KitchenScene:
         from pxr import Gf, UsdGeom, Sdf, Vt
 
         xform = UsdGeom.Xformable(camera_prim)
-        xform.AddTranslateOp().Set(Gf.Vec3d(wr_position))
-        # Convert [w, x, y, z] quat to Gf.Quatd
-        q = Gf.Quatd(wr_orientation[0], wr_orientation[1], wr_orientation[2], wr_orientation[3])
+        xform.AddTranslateOp().Set(Gf.Vec3d(*wr_position))
+        # Convert [w, x, y, z] quat to Gf.Quatf (single precision, required by USD xformOp:orient)
+        q = Gf.Quatf(wr_orientation[0], wr_orientation[1], wr_orientation[2], wr_orientation[3])
         xform.AddOrientOp().Set(q)
 
         # Set camera properties
