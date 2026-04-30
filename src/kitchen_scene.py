@@ -627,7 +627,16 @@ class KitchenScene:
         xform = UsdGeom.Xformable(camera_prim)
         xform.AddTranslateOp().Set(Gf.Vec3d(*wr_position))
         # Convert [w, x, y, z] quat to Gf.Quatf (single precision, required by USD xformOp:orient)
-        q = Gf.Quatf(wr_orientation[0], wr_orientation[1], wr_orientation[2], wr_orientation[3])
+        # Boost.Python in Isaac Sim 4.5+ cannot match Python float (C double) to C float,
+        # so Gf.Quatf(float,float,float,float) falls back to Gf.Quatd constructor.
+        # Workaround: construct Gf.Quatd first, then convert to Gf.Quatf via its copy constructor.
+        q_d = Gf.Quatd(
+            float(wr_orientation[0]),
+            float(wr_orientation[1]),
+            float(wr_orientation[2]),
+            float(wr_orientation[3]),
+        )
+        q = Gf.Quatf(q_d)
         xform.AddOrientOp().Set(q)
 
         # Set camera properties
