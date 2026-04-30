@@ -606,14 +606,14 @@ class KitchenScene:
         wr_clip_max = wr_config.get("clipping_range_t_max", 2.0)
 
         stage = omni.usd.get_context().get_stage()
-        hand_prim_path = "/World/Franka/panda_hand"
+        hand_prim_path = "/World/Franka/panda_link8"
         camera_prim_path = wr_config.get("prim_path", f"{hand_prim_path}/camera_wrist")
 
         # Find the panda_hand prim
         hand_prim = stage.GetPrimAtPath(hand_prim_path)
         if not hand_prim.IsValid():
             logger.warning(
-                f"Cannot create wrist camera: panda_hand prim not found at "
+                f"Cannot create wrist camera: panda_link8 (TCP) prim not found at "
                 f"{hand_prim_path}. Ensure world.reset() was called first."
             )
             return

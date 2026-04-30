@@ -61,18 +61,14 @@ sim_bridge:
       orientation_quat: [0.6380177736282349, 0.6380177736282349, 0.3048497438430786, 0.30484986305236816]  # wxyz, from LIBERO agentview
       fovy: 75
     wrist:
-      prim_path: "/World/Franka/panda_hand/camera_wrist"  # Child of panda_hand (created after world.reset())
+      prim_path: "/World/Franka/panda_link8/camera_wrist"  # Child of panda_link8 (TCP)
       resolution: [256, 256]       # LIBERO default resolution (model resizes to 224)
-      # LIBERO eye_in_hand camera (from robosuite panda robot.xml):
-      # MuJoCo pos (local to right_hand) = [0.05, 0, 0]
-      # MuJoCo quat (xyzw) = [0, 0.707108, 0.707108, 0] → wxyz = [0, 0, 0.707108, 0.707108]
-      # MuJoCo camera looks along +X; Isaac Sim camera looks along +Z.
-      # Need to compose MuJoCo quat with -90° about Y axis conversion:
-      # q_axis(wxyz) = [0.7071, 0, -0.7071, 0]
-      # q_isaac = q_axis ⊗ q_mujoco = [0, 0.7071, 0, -0.7071] (wxyz) → -90° about X
-      # This makes the Isaac Sim camera look along +X (forward along arm), matching MuJoCo.
-      position: [0.0, 0.0, 0.0]    # At hand origin (local coords)
-      orientation_quat: [0.0, 0.7071, 0.0, -0.7071]  # wxyz, converted from LIBERO eye_in_hand
+      # Parented to panda_link8 (the tool center / TCP) so the camera
+      # always has the exact same transform as the TCP.
+      # URDF chain: panda_link7 → panda_link8(TCP) → panda_hand → fingers
+      # panda_link8 is at xyz=[0,0,0.107] from panda_link7, with no rotation.
+      position: [0.0, 0.0, 0.0]    # At TCP origin (local to panda_link8)
+      orientation_quat: [1.0, 0.0, 0.0, 0.0]  # wxyz, identity (camera looks along +Z = TCP frame)
       fovy: 75
       clipping_range_t_min: 0.01   # Near clip plane (m) — must be < position offset
       clipping_range_t_max: 2.0    # Far clip plane (m)
