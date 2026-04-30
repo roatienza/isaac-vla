@@ -1,0 +1,132 @@
+# Kitchen Task Definitions
+# ========================
+# Tasks for evaluating VLA performance in the kitchen environment
+
+tasks:
+  # === Level 1: Simple Pick and Place ===
+  pick_red_block:
+    description: "pick up the red block"
+    difficulty: 1
+    success_condition:
+      type: "object_at_location"
+      object: "red_block"
+      target_position: [0.7, 0.0, 0.82]  # On the plate
+      tolerance: 0.05
+    max_steps: 200
+    objects_needed: ["red_block", "white_plate"]
+
+  pick_blue_block:
+    description: "pick up the blue block"
+    difficulty: 1
+    success_condition:
+      type: "object_at_location"
+      object: "blue_block"
+      target_position: [0.7, 0.0, 0.82]
+      tolerance: 0.05
+    max_steps: 200
+    objects_needed: ["blue_block", "white_plate"]
+
+  # === Level 2: Place on Target ===
+  place_red_on_plate:
+    description: "place the red block on the plate"
+    difficulty: 2
+    success_condition:
+      type: "object_on_object"
+      object: "red_block"
+      target_object: "white_plate"
+      tolerance: 0.05
+    max_steps: 300
+    objects_needed: ["red_block", "white_plate"]
+
+  place_blue_on_plate:
+    description: "place the blue block on the plate"
+    difficulty: 2
+    success_condition:
+      type: "object_on_object"
+      object: "blue_block"
+      target_object: "white_plate"
+      tolerance: 0.05
+    max_steps: 300
+    objects_needed: ["blue_block", "white_plate"]
+
+  # === Level 3: Multi-Object Interaction ===
+  stack_red_on_blue:
+    description: "stack the red block on top of the blue block"
+    difficulty: 3
+    success_condition:
+      type: "object_on_object"
+      object: "red_block"
+      target_object: "blue_block"
+      tolerance: 0.04
+    max_steps: 400
+    objects_needed: ["red_block", "blue_block"]
+
+  move_mug_to_plate:
+    description: "move the yellow mug to the plate"
+    difficulty: 3
+    success_condition:
+      type: "object_near_object"
+      object: "yellow_mug"
+      target_object: "white_plate"
+      tolerance: 0.06
+    max_steps: 400
+    objects_needed: ["yellow_mug", "white_plate"]
+
+  # === Level 4: Complex Manipulation ===
+  pick_and_place_mug_upright:
+    description: "pick up the yellow mug and place it upright on the plate"
+    difficulty: 4
+    success_condition:
+      type: "object_on_object"
+      object: "yellow_mug"
+      target_object: "white_plate"
+      orientation_constraint: "upright"
+      tolerance: 0.05
+    max_steps: 500
+    objects_needed: ["yellow_mug", "white_plate"]
+
+  rearrange_blocks:
+    description: "put the red block on the left side and the blue block on the right side"
+    difficulty: 4
+    success_condition:
+      type: "multi_condition"
+      conditions:
+        - type: "object_at_position"
+          object: "red_block"
+          target_position: [0.5, -0.15, 0.82]
+          tolerance: 0.05
+        - type: "object_at_position"
+          object: "blue_block"
+          target_position: [0.5, 0.15, 0.82]
+          tolerance: 0.05
+    max_steps: 600
+    objects_needed: ["red_block", "blue_block"]
+
+  # === Level 5: Long-Horizon ===
+  clear_table:
+    description: "put all blocks on the plate"
+    difficulty: 5
+    success_condition:
+      type: "all_objects_on_target"
+      objects: ["red_block", "blue_block", "green_block"]
+      target_object: "white_plate"
+      tolerance: 0.05
+    max_steps: 800
+    objects_needed: ["red_block", "blue_block", "green_block", "white_plate"]
+
+  prepare_table:
+    description: "place the mug on the plate and stack the red block on the blue block"
+    difficulty: 5
+    success_condition:
+      type: "multi_condition"
+      conditions:
+        - type: "object_on_object"
+          object: "yellow_mug"
+          target_object: "white_plate"
+          tolerance: 0.05
+        - type: "object_on_object"
+          object: "red_block"
+          target_object: "blue_block"
+          tolerance: 0.04
+    max_steps: 1000
+    objects_needed: ["red_block", "blue_block", "yellow_mug", "white_plate"]

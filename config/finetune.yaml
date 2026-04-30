@@ -1,0 +1,102 @@
+# Fine-Tuning Configuration
+# =========================
+# Configuration for fine-tuning OpenVLA-OFT on Franka kitchen data
+
+# Model Configuration
+model:
+  base_checkpoint: "moojink/openvla-7b-oft-finetuned-libero-spatial"
+  # Or start from base: "openvla/openvla-7b"
+  
+  # Action head configuration
+  use_l1_regression: true
+  use_diffusion: false
+  use_film: false
+  
+  # Input configuration
+  num_images_in_input: 2      # third-person + wrist
+  use_proprio: true
+  proprio_dim: 8              # 7 joint angles + 1 gripper width
+  center_crop: true
+  
+  # Action configuration
+  num_actions_chunk: 8        # Predict 8 actions at a time
+  action_dim: 7               # 7-DOF delta EE pose (dx,dy,dz,droll,dpitch,dyaw,gripper)
+
+# Dataset Configuration
+dataset:
+  name: "franka_kitchen"
+  data_dir: "./data/demonstrations"
+  format: "rlds"
+  
+  # Dataset statistics (computed from collected data)
+  # These will be auto-computed during dataset preparation
+  dataset_statistics:
+    franka_kitchen:
+      action:
+        min: [-1.0, -1.0, -1.0, -3.14, -3.14, -3.14, 0.0]
+        max: [1.0, 1.0, 1.0, 3.14, 3.14, 3.14, 1.0]
+        mean: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5]
+        std: [0.3, 0.3, 0.3, 0.5, 0.5, 0.5, 0.3]
+      proprio:
+        min: [-2.9, -1.76, -2.9, -3.07, -2.9, -0.01, -2.9, 0.0]
+        max: [2.9, 1.76, 2.9, 3.07, 2.9, 0.04, 2.9, 0.04]
+
+# Training Configuration
+training:
+  # Fine-tuning method
+  method: "lora"              # "lora" or "full"
+  
+  # LoRA configuration (if method=lora)
+  lora:
+    rank: 32
+    alpha: 32
+    dropout: 0.0
+    target_modules: ["q_proj", "v_proj", "k_proj", "o_proj"]
+  
+  # Optimizer
+  optimizer: "adamw"
+  learning_rate: 5.0e-5
+  weight_decay: 0.01
+  warmup_steps: 500
+  
+  # Batch and accumulation
+  batch_size: 2               # Per GPU
+  gradient_accumulation_steps: 4
+  effective_batch_size: 8     # batch_size * grad_accum * num_gpus
+  
+  # Schedule
+  num_epochs: 20
+  max_steps: 50000
+  lr_scheduler: "cosine"
+  
+  # Precision
+  dtype: "bfloat16"
+  
+  # Checkpointing
+  save_every: 1000
+  eval_every: 500
+  save_dir: "./checkpoints/franka_kitchen"
+  
+  # Data augmentation
+  augmentation:
+    random_crop: true
+    color_jitter: [0.1, 0.1, 0.1, 0.05]  # brightness, contrast, saturation, hue
+    random_rotation: 5.0      # degrees
+  
+  # Logging
+  wandb:
+    enabled: true
+    project: "isaac-vla"
+    entity: null
+    name: "franka-kitchen-oft-lora32"
+
+# Evaluation during training
+eval:
+  eval_frequency: 500
+  num_episodes: 10
+  task_list:
+    - "pick_red_block"
+    - "place_red_on_plate"
+    - "stack_red_on_blue"
+  save_videos: true
+  video_dir: "./eval_videos"

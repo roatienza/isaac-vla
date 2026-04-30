@@ -1,0 +1,31 @@
+# Isaac-VLA Dependencies
+# ======================
+# Install in vla-oft conda environment (separate from Isaac Sim)
+
+# Core
+fastapi>=0.104.0
+uvicorn>=0.24.0
+pyyaml>=6.0
+numpy>=1.24.0
+Pillow>=10.0.0
+requests>=2.31.0
+json-numpy>=1.0.0
+
+# Rich TUI
+textual>=0.47.0
+rich>=13.6.0
+
+# Isaac Sim (install separately on sim machine)
+# pip install isaacsim  # Isaac Sim 4.5+
+
+# Data collection
+h5py>=3.10.0
+tensorflow-datasets>=4.9.0  # For RLDS format
+
+# Evaluation
+matplotlib>=3.8.0
+pandas>=2.1.0
+
+# Utilities
+tqdm>=4.66.0
+opencv-python>=4.8.0

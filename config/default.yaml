@@ -1,0 +1,132 @@
+# Isaac-VLA Default Configuration
+# ================================
+
+# VLA Server Configuration
+vla_server:
+  host: "0.0.0.0"
+  port: 8777
+  pretrained_checkpoint: "moojink/openvla-7b-oft-finetuned-libero-spatial"
+  use_l1_regression: true
+  use_diffusion: false
+  use_film: false
+  num_images_in_input: 2        # third-person + wrist camera
+  use_proprio: true
+  load_in_8bit: false            # Set true if VRAM limited
+  load_in_4bit: false
+  center_crop: true
+  num_open_loop_steps: 8         # Action chunk size (NUM_ACTIONS_CHUNK)
+  unnorm_key: "libero_spatial_no_noops"  # Default: use pretrained model's unnorm key; change to "franka_kitchen" after fine-tuning
+  device: "cuda:0"
+  warmup_on_start: true           # Run dummy inference on startup (used by run_vla_server.py --no-warmup flag)
+  # openvla_oft_root: null       # Path to openvla-oft repo root. Set if not pip-installed.
+                                 # Auto-searched: env OPENVLA_OFT_ROOT, ../openvla-oft, ~/openvla-oft
+
+# Isaac Sim Bridge Configuration
+sim_bridge:
+  host: "0.0.0.0"
+  port: 8889
+  isaac_sim:
+    headless: false
+    physics_dt: 0.0083            # 120 Hz
+    render_dt: 0.0333             # 30 Hz
+    render_interval: 4            # Render every 4 physics steps
+    width: 1280
+    height: 720
+  robot:
+    prim_path: "/World/Franka"
+    usd_path: null                # Use built-in Franka asset
+    end_effector_prim: "panda_hand"
+    gripper_open_position: 0.04
+    gripper_close_position: 0.0
+    control_mode: "joint_position" # joint_position or end_effector_delta
+    control_frequency: 30         # Hz
+    # Position of the robot base (panda_link0). The Franka URDF places
+    # panda_joint1 (shoulder) at z=0.333 relative to panda_link0.
+    # Setting position z = table_height ensures the robot base sits
+    # flush with the table surface, matching a typical real-world mount.
+    position: [0.25, 0.0, 0.8]    # 0.5m away from table center (center at x=0.75)
+  cameras:
+    third_person:
+      prim_path: "/World/Franka/camera_third"
+      resolution: [256, 256]
+      position: [0.75, 0.0, 3.0]  # Top-down view, centered above 1.5m table
+      target: [0.75, 0.0, 0.8]    # Look straight down at table center
+    wrist:
+      prim_path: "/World/Franka/panda_hand/camera_wrist"
+      resolution: [128, 128]
+      position: [0.0, 0.0, 0.05] # Slightly forward from wrist
+      target: [0.1, 0.0, 0.0]   # Look forward from wrist
+  kitchen_scene:
+    usd_path: null                # null = build programmatically
+    table_height: 0.8
+    table_width: 1.5
+    table_depth: 1.5
+    objects:
+      - name: "red_block"
+        type: "cube"
+        size: 0.04
+        color: [1.0, 0.0, 0.0]
+        position: [0.75, 0.0, 0.82]  # Center of the 1.5m table
+
+# Action Pipeline Configuration
+action_pipeline:
+  # How to interpret VLA actions
+  action_type: "delta_ee"         # delta_ee (OpenVLA-OFT default) or joint_positions
+  # IK solver settings
+  ik:
+    solver: "lula"                # lula, damped_least_squares, or null
+    max_iterations: 50
+    damping: 0.01
+    position_tolerance: 0.005     # LULA position tolerance in meters (more lenient than default 0.001)
+    orientation_tolerance: 0.1    # LULA orientation tolerance in radians (more lenient than default 0.01)
+    ccd_max_iterations: 30        # LULA CCD solver max iterations
+    bfgs_max_iterations: 50      # LULA BFGS refinement max iterations
+    max_num_descents: 10          # LULA number of descent attempts from different seeds
+    fallback_to_position_only: true  # Fall back to position-only IK when full IK fails
+    # LULA config paths — auto-discovered from Isaac Sim if not set.
+    # Uncomment and set these if auto-discovery fails:
+    # robot_description_path: "/home/rowel/isaacsim/exts/isaacsim.robot_motion.motion_generation/motion_policy_configs/franka/rmpflow/robot_descriptor.yaml"
+    # urdf_path: "/home/rowel/isaacsim/exts/isaacsim.robot_motion.motion_generation/motion_policy_configs/franka/lula_franka_gen.urdf"
+    end_effector_frame: "right_gripper"  # LULA frame name for Franka end-effector
+  # Safety
+  max_ee_velocity: 0.2            # m/s
+  max_joint_velocity: 1.0         # rad/s
+  workspace_bounds:
+    x: [0.25, 1.45]
+    y: [-0.7, 0.7]
+    z: [0.8, 2.0]
+  # Gripper
+  gripper_threshold: 0.5          # VLA output > 0.5 = close
+  gripper_action_scale: 0.04      # Max gripper opening in meters
+  orientation_delta_threshold: 0.05  # Rotation delta magnitude threshold for orientation IK (radians)
+
+# Episode Configuration
+episode:
+  max_steps: 500                  # Max steps per episode
+  action_chunk_size: 8            # Open-loop steps per VLA query
+  vla_query_frequency: 8          # Re-query VLA every N sim steps
+  reset_on_success: true
+  reset_on_failure: true
+
+# Data Collection Configuration
+data_collection:
+  save_dir: "./data/demonstrations"
+  format: "rlds"                  # rlds or hdf5
+  save_images: true
+  image_resolution: [256, 256]
+  save_proprio: true
+  save_actions: true
+  save_frequency: 1               # Save every N steps
+
+# Evaluation Configuration
+evaluation:
+  num_episodes: 50
+  save_videos: true
+  video_dir: "./data/evaluation_videos"
+  metrics: ["success_rate", "avg_episode_length", "avg_action_variance"]
+
+# Logging
+logging:
+  level: "INFO"
+  file: "./logs/isaac-vla.log"
+  max_file_size_mb: 100
