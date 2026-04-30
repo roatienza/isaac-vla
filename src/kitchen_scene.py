@@ -447,24 +447,74 @@ class KitchenScene:
         wr_target = np.array(wr_config.get("target", [0.1, 0.0, 0.0]))
         wr_orientation = self._look_at_to_orientation(wr_position, wr_target)
 
-        # Clipping range — critical for wrist cameras. The default near clip
-        # (often 0.1 m) is farther than the 5 cm offset of this camera,
-        # causing everything to be clipped and producing a black image.
-        wr_clip_min = wr_config.get("clipping_range_t_min", 0.01)
-        wr_clip_max = wr_config.get("clipping_range_t_max", 2.0)
-
         self.cameras["wrist"] = Camera(
             prim_path=wr_config.get("prim_path", "/World/Franka/panda_hand/camera_wrist"),
             name="wrist_camera",
             resolution=wr_resolution,
             position=wr_position,
             orientation=wr_orientation,
-            clipping_range_t_min=wr_clip_min,
-            clipping_range_t_max=wr_clip_max,
         )
         self.world.scene.add(self.cameras["wrist"])
 
+        # Set clipping range on the USD prim AFTER creation.
+        # Critical for wrist cameras: the default near clip (0.1 m) is farther
+        # than the 5 cm offset of this camera, causing everything to be clipped
+        # and producing a black image.
+        wr_clip_min = wr_config.get("clipping_range_t_min", 0.01)
+        wr_clip_max = wr_config.get("clipping_range_t_max", 2.0)
+        self._set_camera_clipping_range(
+            self.cameras["wrist"], wr_clip_min, wr_clip_max
+        )
+
         logger.debug("Added third-person and wrist cameras")
+
+    @staticmethod
+    def _set_camera_clipping_range(camera, t_min: float, t_max: float):
+        """Set clipping range on a Camera's USD prim after construction.
+
+        Isaac Sim 4.5+ ``Camera.__init__()`` does not accept
+        ``clipping_range_t_min`` / ``clipping_range_t_max`` kwargs.
+        These must be set on the underlying USD prim directly.
+
+        Args:
+            camera: Isaac Sim Camera instance
+            t_min: Near clip plane distance (m)
+            t_max: Far clip plane distance (m)
+        """
+        import omni.usd
+
+        stage = omni.usd.get_context().get_stage()
+        prim_path = camera.prim_path
+        prim = stage.GetPrimAtPath(prim_path)
+
+        if not prim.IsValid():
+            logger.warning(
+                f"Could not find prim at {prim_path} to set clipping range"
+            )
+            return
+
+        # The clipping range is stored on the Camera2 API schema attribute
+        # "clippingRange" as a VtVec2f (t_min, t_max).
+        try:
+            from pxr import Gf, Sdf
+
+            # Set the clippingRange attribute on the camera prim
+            clipping_attr = prim.GetAttribute("clippingRange")
+            if clipping_attr.IsValid():
+                clipping_attr.Set(Gf.Vec2f(t_min, t_max))
+            else:
+                # Fallback: create the attribute
+                clipping_attr = prim.CreateAttribute(
+                    "clippingRange", Sdf.ValueTypeNames.Vec2f
+                )
+                clipping_attr.Set(Gf.Vec2f(t_min, t_max))
+            logger.debug(
+                f"Set clipping range [{t_min}, {t_max}] on camera '{prim_path}'"
+            )
+        except Exception as e:
+            logger.warning(
+                f"Failed to set clipping range on camera '{prim_path}': {e}"
+            )
 
     def initialize_cameras(self):
         """Initialize camera sensors after world.reset().
