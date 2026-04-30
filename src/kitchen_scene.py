@@ -447,12 +447,20 @@ class KitchenScene:
         wr_target = np.array(wr_config.get("target", [0.1, 0.0, 0.0]))
         wr_orientation = self._look_at_to_orientation(wr_position, wr_target)
 
+        # Clipping range — critical for wrist cameras. The default near clip
+        # (often 0.1 m) is farther than the 5 cm offset of this camera,
+        # causing everything to be clipped and producing a black image.
+        wr_clip_min = wr_config.get("clipping_range_t_min", 0.01)
+        wr_clip_max = wr_config.get("clipping_range_t_max", 2.0)
+
         self.cameras["wrist"] = Camera(
             prim_path=wr_config.get("prim_path", "/World/Franka/panda_hand/camera_wrist"),
             name="wrist_camera",
             resolution=wr_resolution,
             position=wr_position,
             orientation=wr_orientation,
+            clipping_range_t_min=wr_clip_min,
+            clipping_range_t_max=wr_clip_max,
         )
         self.world.scene.add(self.cameras["wrist"])
 

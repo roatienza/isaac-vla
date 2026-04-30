@@ -56,6 +56,8 @@ sim_bridge:
       resolution: [128, 128]
       position: [0.0, 0.0, 0.05] # Slightly forward from wrist
       target: [0.1, 0.0, 0.0]   # Look forward from wrist
+      clipping_range_t_min: 0.01 # Near clip plane (m) — must be < position offset to avoid black image
+      clipping_range_t_max: 2.0  # Far clip plane (m)
   kitchen_scene:
     usd_path: null                # null = build programmatically
     table_height: 0.8
