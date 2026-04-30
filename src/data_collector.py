@@ -105,8 +105,8 @@ class DataCollector:
         # Preprocess images
         tp_processed = crop_and_resize(third_person_image, self.image_resolution)
         wr_processed = (
-            crop_and_resize(wrist_image, (128, 128)) if wrist_image is not None
-            else np.zeros((128, 128, 3), dtype=np.uint8)
+            crop_and_resize(wrist_image, (256, 256)) if wrist_image is not None
+            else np.zeros((256, 256, 3), dtype=np.uint8)
         )
 
         step = StepData(

@@ -48,16 +48,27 @@ sim_bridge:
   cameras:
     third_person:
       prim_path: "/World/Franka/camera_third"
-      resolution: [256, 256]
-      position: [0.75, 0.0, 3.0]  # Top-down view, centered above 1.5m table
-      target: [0.75, 0.0, 0.8]    # Look straight down at table center
+      resolution: [256, 256]       # LIBERO default resolution (model resizes to 224)
+      # LIBERO agentview camera from bddl_base_domain.py:
+      # pos=[0.5886131746834771, 0.0, 1.4903500240372423] (robot-relative)
+      # Robot base at [0.25, 0.0, 0.8] → world pos = [0.8386, 0.0, 2.2904]
+      # quat=[0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349]
+      # (w, x, y, z) — looks down-forward at the table
+      position: [0.8386, 0.0, 2.2904]
+      orientation_quat: [0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349]
+      fovy: 75
     wrist:
       prim_path: "/World/Franka/panda_hand/camera_wrist"
-      resolution: [128, 128]
-      position: [0.0, 0.0, 0.05] # Slightly forward from wrist
-      target: [0.1, 0.0, 0.0]   # Look forward from wrist
-      clipping_range_t_min: 0.01 # Near clip plane (m) — must be < position offset to avoid black image
-      clipping_range_t_max: 2.0  # Far clip plane (m)
+      resolution: [256, 256]       # LIBERO default resolution (model resizes to 224)
+      # Panda eye_in_hand camera from robot.xml:
+      # pos="0.05 0 0" quat="0 0.707108 0.707108 0" fovy="75"
+      # quat in MuJoCo is [x,y,z,w] → [0.707108, 0.707108, 0, 0]
+      # In Isaac Sim (w,x,y,z): [0, 0.707108, 0.707108, 0]
+      position: [0.05, 0.0, 0.0]   # 5cm forward from panda_hand (local coords)
+      orientation_quat: [0.0, 0.707108, 0.707108, 0.0]
+      fovy: 75
+      clipping_range_t_min: 0.01   # Near clip plane (m) — must be < position offset
+      clipping_range_t_max: 2.0    # Far clip plane (m)
   kitchen_scene:
     usd_path: null                # null = build programmatically
     table_height: 0.8

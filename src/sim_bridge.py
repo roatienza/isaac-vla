@@ -501,7 +501,7 @@ class SimBridge:
             center_crop=True,
         )
         wr_image = crop_and_resize(
-            images.get("wrist", np.zeros((128, 128, 3), dtype=np.uint8)),
+            images.get("wrist", np.zeros((256, 256, 3), dtype=np.uint8)),
             target_size=(128, 128),
             center_crop=True,
         )

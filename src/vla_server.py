@@ -290,8 +290,8 @@ class VLAServer:
 
         # Create dummy observation matching OpenVLA-OFT expected format
         dummy_obs = {
-            "full_image": np.zeros((256, 256, 3), dtype=np.uint8),
-            "wrist_image": np.zeros((128, 128, 3), dtype=np.uint8),
+            "full_image": np.zeros((256, 256, 3), dtype=np.uint8),  # LIBERO resolution
+            "wrist_image": np.zeros((256, 256, 3), dtype=np.uint8),  # LIBERO resolution
             "state": np.zeros(8, dtype=np.float32),  # 7 joints + gripper
             "task_description": "pick up the block",
         }

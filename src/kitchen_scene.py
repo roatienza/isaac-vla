@@ -416,20 +416,30 @@ class KitchenScene:
         The wrist camera provides the secondary observation image.
         Both are required by OpenVLA-OFT (num_images_in_input=2).
 
+        Camera positions and orientations match LIBERO's MuJoCo setup:
+        - Third-person: LIBERO agentview camera (pos + quat from bddl_base_domain.py)
+        - Wrist: Panda eye_in_hand camera (pos + quat + fovy from robot.xml)
+
         NOTE: Isaac Sim 4.5+ Camera.__init__() does NOT accept a ``target``
-        keyword.  We convert the config ``target`` (look-at point) into an
-        ``orientation`` quaternion using the ``_look_at_to_orientation`` helper.
+        keyword.  We use either an explicit ``orientation_quat`` from config
+        or convert a ``target`` (look-at point) into an orientation quaternion.
         """
         from isaacsim.sensors.camera import Camera
 
         cameras_config = self.config.get("cameras", {})
 
-        # Third-person camera (overhead/shoulder mount)
+        # Third-person camera (LIBERO agentview)
         tp_config = cameras_config.get("third_person", {})
         tp_resolution = tuple(tp_config.get("resolution", [256, 256]))
         tp_position = np.array(tp_config.get("position", [1.0, 0.0, 1.5]))
-        tp_target = np.array(tp_config.get("target", [0.5, 0.0, 0.8]))
-        tp_orientation = self._look_at_to_orientation(tp_position, tp_target)
+        tp_fovy = tp_config.get("fovy", 75)
+
+        # Use explicit quaternion if provided, otherwise compute from look-at target
+        if "orientation_quat" in tp_config:
+            tp_orientation = np.array(tp_config["orientation_quat"])  # [w, x, y, z]
+        else:
+            tp_target = np.array(tp_config.get("target", [0.5, 0.0, 0.8]))
+            tp_orientation = self._look_at_to_orientation(tp_position, tp_target)
 
         self.cameras["third_person"] = Camera(
             prim_path=tp_config.get("prim_path", "/World/Franka/camera_third"),
@@ -440,12 +450,22 @@ class KitchenScene:
         )
         self.world.scene.add(self.cameras["third_person"])
 
-        # Wrist camera (mounted on end-effector)
+        # Set fovy on the USD prim after creation (Camera.__init__ doesn't accept fovy)
+        if tp_fovy != 75:  # 75 is the USD default, skip if unchanged
+            self._set_camera_fovy(self.cameras["third_person"], tp_fovy)
+
+        # Wrist camera (Panda eye_in_hand)
         wr_config = cameras_config.get("wrist", {})
-        wr_resolution = tuple(wr_config.get("resolution", [128, 128]))
-        wr_position = np.array(wr_config.get("position", [0.0, 0.0, 0.05]))
-        wr_target = np.array(wr_config.get("target", [0.1, 0.0, 0.0]))
-        wr_orientation = self._look_at_to_orientation(wr_position, wr_target)
+        wr_resolution = tuple(wr_config.get("resolution", [256, 256]))
+        wr_position = np.array(wr_config.get("position", [0.05, 0.0, 0.0]))
+        wr_fovy = wr_config.get("fovy", 75)
+
+        # Use explicit quaternion if provided, otherwise compute from look-at target
+        if "orientation_quat" in wr_config:
+            wr_orientation = np.array(wr_config["orientation_quat"])  # [w, x, y, z]
+        else:
+            wr_target = np.array(wr_config.get("target", [0.1, 0.0, 0.0]))
+            wr_orientation = self._look_at_to_orientation(wr_position, wr_target)
 
         self.cameras["wrist"] = Camera(
             prim_path=wr_config.get("prim_path", "/World/Franka/panda_hand/camera_wrist"),
@@ -455,6 +475,10 @@ class KitchenScene:
             orientation=wr_orientation,
         )
         self.world.scene.add(self.cameras["wrist"])
+
+        # Set fovy on the USD prim after creation
+        if wr_fovy != 75:
+            self._set_camera_fovy(self.cameras["wrist"], wr_fovy)
 
         # Set clipping range on the USD prim AFTER creation.
         # Critical for wrist cameras: the default near clip (0.1 m) is farther
@@ -467,6 +491,43 @@ class KitchenScene:
         )
 
         logger.debug("Added third-person and wrist cameras")
+
+    @staticmethod
+    def _set_camera_fovy(camera, fovy: float):
+        """Set the vertical field of view on a Camera's USD prim.
+
+        Args:
+            camera: Isaac Sim Camera instance
+            fovy: Vertical field of view in degrees
+        """
+        import math
+        import omni.usd
+
+        stage = omni.usd.get_context().get_stage()
+        prim_path = camera.prim_path
+        prim = stage.GetPrimAtPath(prim_path)
+
+        if not prim.IsValid():
+            logger.warning(f"Could not find prim at {prim_path} to set fovy")
+            return
+
+        try:
+            from pxr import UsdGeom
+
+            geom_camera = UsdGeom.Camera(prim)
+            # Get current focal length (USD stores in tenths of stage units)
+            focal_length = geom_camera.GetFocalLength() / 10.0  # Convert to stage units
+            # Get vertical aperture
+            vert_aperture = geom_camera.GetVerticalAperture() / 10.0
+
+            # Compute new focal length for desired fovy:
+            # fovy = 2 * arctan(vert_aperture / (2 * focal_length))
+            # => focal_length = vert_aperture / (2 * tan(fovy/2))
+            new_focal_length = vert_aperture / (2.0 * math.tan(math.radians(fovy / 2.0)))
+            geom_camera.GetFocalLengthAttr().Set(new_focal_length * 10.0)  # Convert back to tenths
+            logger.debug(f"Set fovy={fovy} on camera '{prim_path}' (focal_length={new_focal_length})")
+        except Exception as e:
+            logger.warning(f"Failed to set fovy on camera '{prim_path}': {e}")
 
     @staticmethod
     def _set_camera_clipping_range(camera, t_min: float, t_max: float):
