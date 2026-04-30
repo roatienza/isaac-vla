@@ -47,25 +47,32 @@ sim_bridge:
     position: [0.25, 0.0, 0.8]    # 0.5m away from table center (center at x=0.75)
   cameras:
     third_person:
-      prim_path: "/World/Franka/camera_third"
+      prim_path: "/World/camera_third"
       resolution: [256, 256]       # LIBERO default resolution (model resizes to 224)
-      # LIBERO agentview camera from bddl_base_domain.py:
-      # pos=[0.5886131746834771, 0.0, 1.4903500240372423] (robot-relative)
+      # LIBERO agentview camera (from bddl_base_domain.py):
+      # MuJoCo pos (robot-relative) = [0.5886131746834771, 0.0, 1.4903500240372423]
+      # MuJoCo quat (xyzw) = [0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349]
       # Robot base at [0.25, 0.0, 0.8] → world pos = [0.8386, 0.0, 2.2904]
-      # quat=[0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349]
-      # (w, x, y, z) — looks down-forward at the table
+      # Isaac Sim uses wxyz quat format. MuJoCo uses xyzw.
+      # MuJoCo [x,y,z,w] → Isaac Sim [w,x,y,z]:
+      # [0.6380177736282349, 0.6380177736282349, 0.3048497438430786, 0.30484986305236816]
+      # Both MuJoCo and Isaac Sim use +Z up, so the quat conversion is just reordering.
       position: [0.8386, 0.0, 2.2904]
-      orientation_quat: [0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349]
+      orientation_quat: [0.6380177736282349, 0.6380177736282349, 0.3048497438430786, 0.30484986305236816]  # wxyz, from LIBERO agentview
       fovy: 75
     wrist:
-      prim_path: "/World/Franka/panda_hand/camera_wrist"
+      prim_path: "/World/Franka/panda_hand/camera_wrist"  # Child of panda_hand (created after world.reset())
       resolution: [256, 256]       # LIBERO default resolution (model resizes to 224)
-      # Panda eye_in_hand camera from robot.xml:
-      # pos="0.05 0 0" quat="0 0.707108 0.707108 0" fovy="75"
-      # quat in MuJoCo is [x,y,z,w] → [0.707108, 0.707108, 0, 0]
-      # In Isaac Sim (w,x,y,z): [0, 0.707108, 0.707108, 0]
-      position: [0.05, 0.0, 0.0]   # 5cm forward from panda_hand (local coords)
-      orientation_quat: [0.0, 0.707108, 0.707108, 0.0]
+      # LIBERO eye_in_hand camera (from robosuite panda robot.xml):
+      # MuJoCo pos (local to right_hand) = [0.05, 0, 0]
+      # MuJoCo quat (xyzw) = [0, 0.707108, 0.707108, 0] → wxyz = [0, 0, 0.707108, 0.707108]
+      # MuJoCo camera looks along +X; Isaac Sim camera looks along +Z.
+      # Need to compose MuJoCo quat with -90° about Y axis conversion:
+      # q_axis(wxyz) = [0.7071, 0, -0.7071, 0]
+      # q_isaac = q_axis ⊗ q_mujoco = [0, 0.7071, 0, -0.7071] (wxyz) → -90° about X
+      # This makes the Isaac Sim camera look along +X (forward along arm), matching MuJoCo.
+      position: [0.05, 0.0, 0.0]   # 5cm forward from hand (local coords, same as MuJoCo)
+      orientation_quat: [0.0, 0.7071, 0.0, -0.7071]  # wxyz, converted from LIBERO eye_in_hand
       fovy: 75
       clipping_range_t_min: 0.01   # Near clip plane (m) — must be < position offset
       clipping_range_t_max: 2.0    # Far clip plane (m)

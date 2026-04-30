@@ -61,6 +61,9 @@ class KitchenScene:
         # Object positions for reset
         self._initial_positions: Dict[str, np.ndarray] = {}
 
+        # Wrist camera config (stored for deferred creation after world.reset())
+        self._wrist_camera_config: Dict[str, Any] = {}
+
     def build(self):
         """Build the complete kitchen scene.
 
@@ -454,43 +457,15 @@ class KitchenScene:
         if tp_fovy != 75:  # 75 is the USD default, skip if unchanged
             self._set_camera_fovy(self.cameras["third_person"], tp_fovy)
 
-        # Wrist camera (Panda eye_in_hand)
-        wr_config = cameras_config.get("wrist", {})
-        wr_resolution = tuple(wr_config.get("resolution", [256, 256]))
-        wr_position = np.array(wr_config.get("position", [0.05, 0.0, 0.0]))
-        wr_fovy = wr_config.get("fovy", 75)
+        # Wrist camera is deferred until AFTER world.reset() because:
+        # 1. Its prim_path is under panda_hand which doesn't have correct
+        #    world-space transforms until after reset
+        # 2. Camera() constructor interprets position as WORLD coordinates,
+        #    but we need LOCAL coordinates relative to the moving hand
+        # We store the config and create it in initialize_cameras() instead.
+        self._wrist_camera_config = cameras_config.get("wrist", {})
 
-        # Use explicit quaternion if provided, otherwise compute from look-at target
-        if "orientation_quat" in wr_config:
-            wr_orientation = np.array(wr_config["orientation_quat"])  # [w, x, y, z]
-        else:
-            wr_target = np.array(wr_config.get("target", [0.1, 0.0, 0.0]))
-            wr_orientation = self._look_at_to_orientation(wr_position, wr_target)
-
-        self.cameras["wrist"] = Camera(
-            prim_path=wr_config.get("prim_path", "/World/Franka/panda_hand/camera_wrist"),
-            name="wrist_camera",
-            resolution=wr_resolution,
-            position=wr_position,
-            orientation=wr_orientation,
-        )
-        self.world.scene.add(self.cameras["wrist"])
-
-        # Set fovy on the USD prim after creation
-        if wr_fovy != 75:
-            self._set_camera_fovy(self.cameras["wrist"], wr_fovy)
-
-        # Set clipping range on the USD prim AFTER creation.
-        # Critical for wrist cameras: the default near clip (0.1 m) is farther
-        # than the 5 cm offset of this camera, causing everything to be clipped
-        # and producing a black image.
-        wr_clip_min = wr_config.get("clipping_range_t_min", 0.01)
-        wr_clip_max = wr_config.get("clipping_range_t_max", 2.0)
-        self._set_camera_clipping_range(
-            self.cameras["wrist"], wr_clip_min, wr_clip_max
-        )
-
-        logger.debug("Added third-person and wrist cameras")
+        logger.debug("Added third-person camera (wrist deferred until after world.reset)")
 
     @staticmethod
     def _set_camera_fovy(camera, fovy: float):
@@ -585,13 +560,119 @@ class KitchenScene:
         Without this, ``get_rgba()`` will return ``None`` and the
         ``__del__`` / ``destroy()`` method will raise
         ``AttributeError: 'Camera' object has no attribute '_custom_annotators'``.
+
+        The wrist camera is also created here (deferred from _add_cameras)
+        because it needs to be a child of panda_hand with LOCAL coordinates,
+        which only makes sense after the robot articulation is initialized.
         """
-        for name, camera in self.cameras.items():
+        # Initialize third-person camera
+        if "third_person" in self.cameras:
             try:
-                camera.initialize()
-                logger.debug(f"Initialized camera '{name}'")
+                self.cameras["third_person"].initialize()
+                logger.debug("Initialized third_person camera")
             except Exception as e:
-                logger.warning(f"Failed to initialize camera '{name}': {e}")
+                logger.warning(f"Failed to initialize third_person camera: {e}")
+
+        # Create wrist camera as a child of panda_hand using USD APIs directly.
+        # This ensures the camera moves with the hand and uses local coordinates.
+        self._create_wrist_camera()
+
+    def _create_wrist_camera(self):
+        """Create the wrist-mounted camera as a child of panda_hand.
+
+        Must be called AFTER world.reset() so that the panda_hand prim
+        exists with correct transforms. Uses USD APIs directly to create
+        a UsdGeom.Camera prim as a child of the hand, ensuring it moves
+        with the robot and uses local (not world) coordinates.
+        """
+        import omni.usd
+
+        wr_config = self._wrist_camera_config
+        if not wr_config:
+            logger.warning("No wrist camera config found")
+            return
+
+        wr_resolution = tuple(wr_config.get("resolution", [256, 256]))
+        wr_position = np.array(wr_config.get("position", [0.05, 0.0, 0.0]))
+        wr_fovy = wr_config.get("fovy", 75)
+
+        if "orientation_quat" in wr_config:
+            wr_orientation = np.array(wr_config["orientation_quat"])  # [w, x, y, z]
+        else:
+            wr_target = np.array(wr_config.get("target", [0.1, 0.0, 0.0]))
+            wr_orientation = self._look_at_to_orientation(wr_position, wr_target)
+
+        wr_clip_min = wr_config.get("clipping_range_t_min", 0.01)
+        wr_clip_max = wr_config.get("clipping_range_t_max", 2.0)
+
+        stage = omni.usd.get_context().get_stage()
+        hand_prim_path = "/World/Franka/panda_hand"
+        camera_prim_path = wr_config.get("prim_path", f"{hand_prim_path}/camera_wrist")
+
+        # Find the panda_hand prim
+        hand_prim = stage.GetPrimAtPath(hand_prim_path)
+        if not hand_prim.IsValid():
+            logger.warning(
+                f"Cannot create wrist camera: panda_hand prim not found at "
+                f"{hand_prim_path}. Ensure world.reset() was called first."
+            )
+            return
+
+        # Define the camera prim as a child of panda_hand
+        camera_prim = stage.DefinePrim(camera_prim_path, "Camera")
+
+        # Set local transform (position relative to hand)
+        from pxr import Gf, UsdGeom, Sdf, Vt
+
+        xform = UsdGeom.Xformable(camera_prim)
+        xform.AddTranslateOp().Set(Gf.Vec3d(wr_position))
+        # Convert [w, x, y, z] quat to Gf.Quatd
+        q = Gf.Quatd(wr_orientation[0], wr_orientation[1], wr_orientation[2], wr_orientation[3])
+        xform.AddOrientOp().Set(q)
+
+        # Set camera properties
+        geom_camera = UsdGeom.Camera(camera_prim)
+        geom_camera.GetHorizontalApertureAttr().Set(wr_resolution[1] / 10.0)  # tenths
+        geom_camera.GetVerticalApertureAttr().Set(wr_resolution[0] / 10.0)
+
+        # Set fovy via focal length
+        import math
+        vert_aperture = wr_resolution[0] / 10.0
+        new_focal_length = (vert_aperture / (2.0 * math.tan(math.radians(wr_fovy / 2.0))))
+        geom_camera.GetFocalLengthAttr().Set(new_focal_length * 10.0)
+
+        # Set clipping range
+        clipping_attr = camera_prim.GetAttribute("clippingRange")
+        if clipping_attr.IsValid():
+            clipping_attr.Set(Gf.Vec2f(wr_clip_min, wr_clip_max))
+        else:
+            clipping_attr = camera_prim.CreateAttribute(
+                "clippingRange", Sdf.ValueTypeNames.Vec2f
+            )
+            clipping_attr.Set(Gf.Vec2f(wr_clip_min, wr_clip_max))
+
+        # Now wrap it in Isaac Sim Camera class for get_rgba() support
+        from isaacsim.sensors.camera import Camera
+
+        self.cameras["wrist"] = Camera(
+            prim_path=camera_prim_path,
+            name="wrist_camera",
+            resolution=wr_resolution,
+            position=np.zeros(3),  # Already set via USD prim
+            orientation=np.array([1.0, 0.0, 0.0, 0.0]),  # Already set via USD prim
+        )
+        self.world.scene.add(self.cameras["wrist"])
+
+        # Initialize the camera sensor
+        try:
+            self.cameras["wrist"].initialize()
+            logger.info(
+                f"Created and initialized wrist camera at {camera_prim_path} "
+                f"(resolution={wr_resolution}, fovy={wr_fovy}, "
+                f"clipping=[{wr_clip_min}, {wr_clip_max}])"
+            )
+        except Exception as e:
+            logger.warning(f"Failed to initialize wrist camera: {e}")
 
     def _add_lighting(self):
         """Add scene lighting for better camera images.
