@@ -49,16 +49,14 @@ sim_bridge:
     third_person:
       prim_path: "/World/camera_third"
       resolution: [256, 256]       # LIBERO default resolution (model resizes to 224)
-      # LIBERO agentview camera (from bddl_base_domain.py):
-      # MuJoCo pos (robot-relative) = [0.5886131746834771, 0.0, 1.4903500240372423]
-      # MuJoCo quat (xyzw) = [0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349]
-      # Robot base at [0.25, 0.0, 0.8] → world pos = [0.8386, 0.0, 2.2904]
-      # Isaac Sim uses wxyz quat format. MuJoCo uses xyzw.
-      # MuJoCo [x,y,z,w] → Isaac Sim [w,x,y,z]:
-      # [0.6380177736282349, 0.6380177736282349, 0.3048497438430786, 0.30484986305236816]
-      # Both MuJoCo and Isaac Sim use +Z up, so the quat conversion is just reordering.
+      # Camera elevated above and to the side of the robot, looking down
+      # at the table. The ``target`` is the center of the table surface,
+      # computed from kitchen_scene config:
+      #   table_center_x = table_depth / 2 = 0.75
+      #   table_surface_z = table_height = 0.8
+      # The orientation is auto-computed via look-at (no explicit quat needed).
       position: [0.8386, 0.0, 2.2904]
-      orientation_quat: [0.6380177736282349, 0.6380177736282349, 0.3048497438430786, 0.30484986305236816]  # wxyz, from LIBERO agentview
+      target: [0.75, 0.0, 0.8]  # Table surface center
       fovy: 75
     wrist:
       prim_path: "/World/Franka/panda_hand/camera_wrist"  # Child of panda_hand (TCP, moves with arm)
