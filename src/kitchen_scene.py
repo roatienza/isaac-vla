@@ -574,7 +574,7 @@ class KitchenScene:
                 logger.warning(f"Failed to initialize third_person camera: {e}")
 
         # Create wrist camera as a child of panda_hand using USD APIs directly.
-        # This ensures the camera moves with the hand and uses local coordinates.
+        # This ensures the camera moves with the end-effector and uses local coordinates.
         self._create_wrist_camera()
 
     def _create_wrist_camera(self):
@@ -582,7 +582,7 @@ class KitchenScene:
 
         Must be called AFTER world.reset() so that the panda_hand prim
         exists with correct transforms. Uses USD APIs directly to create
-        a UsdGeom.Camera prim as a child of the hand, ensuring it moves
+        a UsdGeom.Camera prim as a child of the TCP link, ensuring it moves
         with the robot and uses local (not world) coordinates.
         """
         import omni.usd
@@ -609,7 +609,7 @@ class KitchenScene:
         hand_prim_path = "/World/Franka/panda_hand"
         camera_prim_path = wr_config.get("prim_path", f"{hand_prim_path}/camera_wrist")
 
-        # Find the panda_hand prim
+        # Find the panda_hand prim (the actual TCP link that moves with the arm)
         hand_prim = stage.GetPrimAtPath(hand_prim_path)
         if not hand_prim.IsValid():
             logger.warning(
@@ -621,23 +621,7 @@ class KitchenScene:
         # Define the camera prim as a child of panda_hand
         camera_prim = stage.DefinePrim(camera_prim_path, "Camera")
 
-        # Set local transform (position relative to hand)
         from pxr import Gf, UsdGeom, Sdf, Vt
-
-        xform = UsdGeom.Xformable(camera_prim)
-        xform.AddTranslateOp().Set(Gf.Vec3d(*wr_position))
-        # Convert [w, x, y, z] quat to Gf.Quatf (single precision, required by USD xformOp:orient)
-        # Boost.Python in Isaac Sim 4.5+ cannot match Python float (C double) to C float,
-        # so Gf.Quatf(float,float,float,float) falls back to Gf.Quatd constructor.
-        # Workaround: construct Gf.Quatd first, then convert to Gf.Quatf via its copy constructor.
-        q_d = Gf.Quatd(
-            float(wr_orientation[0]),
-            float(wr_orientation[1]),
-            float(wr_orientation[2]),
-            float(wr_orientation[3]),
-        )
-        q = Gf.Quatf(q_d)
-        xform.AddOrientOp().Set(q)
 
         # Set camera properties
         geom_camera = UsdGeom.Camera(camera_prim)
@@ -660,17 +644,38 @@ class KitchenScene:
             )
             clipping_attr.Set(Gf.Vec2f(wr_clip_min, wr_clip_max))
 
-        # Now wrap it in Isaac Sim Camera class for get_rgba() support
+        # Now wrap it in Isaac Sim Camera class for get_rgba() support.
+        # The Camera constructor interprets position/orientation as WORLD-space,
+        # so we pass identity here and set the LOCAL transform directly via USD
+        # XformOps afterward. This ensures the camera stays fixed relative to
+        # panda_hand regardless of the robot's configuration.
         from isaacsim.sensors.camera import Camera
 
         self.cameras["wrist"] = Camera(
             prim_path=camera_prim_path,
             name="wrist_camera",
             resolution=wr_resolution,
-            position=np.zeros(3),  # Already set via USD prim
-            orientation=np.array([1.0, 0.0, 0.0, 0.0]),  # Already set via USD prim
+            position=np.array([0.0, 0.0, 0.0]),
+            orientation=np.array([1.0, 0.0, 0.0, 0.0]),
         )
         self.world.scene.add(self.cameras["wrist"])
+
+        # Override with LOCAL coordinates relative to panda_hand.
+        # The Camera constructor above received identity position/orientation,
+        # so no authored xform ops exist. We directly add the local transform
+        # ops via UsdGeom.Xformable.
+        xformable = UsdGeom.Xformable(camera_prim)
+        xformable.AddTranslateOp().Set(
+            Gf.Vec3d(float(wr_position[0]), float(wr_position[1]), float(wr_position[2]))
+        )
+        xformable.AddOrientOp().Set(
+            Gf.Quatd(
+                float(wr_orientation[0]),  # w
+                float(wr_orientation[1]),  # x
+                float(wr_orientation[2]),  # y
+                float(wr_orientation[3]),  # z
+            )
+        )
 
         # Initialize the camera sensor
         try:
