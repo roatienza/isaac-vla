@@ -61,17 +61,16 @@ sim_bridge:
     wrist:
       prim_path: "/World/Franka/panda_hand/camera_wrist"  # Child of panda_hand (TCP, moves with arm)
       resolution: [256, 256]       # LIBERO default resolution (model resizes to 224)
-      # Wrist camera attached to panda_hand, optical axis pointing along
-      # the finger direction (+X in panda_hand frame). The target is set
-      # further along +X so the look-at vector aligns with the fingers.
+      # Wrist camera attached to panda_hand, optical axis pointing DOWN
+      # toward the gripper fingers (-Z in panda_hand frame). This matches
+      # the LIBERO wrist camera viewpoint which looks down at the gripper.
       #
       # panda_hand frame: +X = forward (finger direction), +Y = right, +Z = up
-      # Isaac Sim camera optical axis = +Z. Explicit xyz rotation [-180, 0, -180]
-      # (equivalent to 180° about Y) flips the camera so +Z points along -Z
-      # (downward) in the hand frame.
+      # Isaac Sim camera optical axis = +Z. A 180° rotation about Y flips
+      # the camera so optical axis points along -Z (downward) in the hand frame.
       position: [0.05, 0.0, 0.0]  # 5cm forward from panda_hand origin (local coords)
-      orientation_quat: [0.0, -0.707107, 0.707107, -0.0]  # xyz euler [-180, 0, -90] → wxyz
-      focal_length: 1.2                       # Direct focal length (meters) — overrides fovy
+      orientation_quat: [0.0, 0.0, 1.0, 0.0]  # xyz euler [0, 180, 0] → wxyz (180° about Y, looks down)
+      focal_length: 0.8                       # Direct focal length (meters) — FOVY ~37°, closer to LIBERO training data
       clipping_range_t_min: 0.01   # Near clip plane (m) — must be < position offset
       clipping_range_t_max: 2.0    # Far clip plane (m)
   kitchen_scene:
@@ -110,9 +109,9 @@ action_pipeline:
   max_ee_velocity: 0.2            # m/s
   max_joint_velocity: 1.0         # rad/s
   workspace_bounds:
-    x: [0.25, 1.45]
-    y: [-0.7, 0.7]
-    z: [0.8, 2.0]
+    x: [0.15, 1.10]    # Franka base at x=0.25, max reach ~0.85m forward
+    y: [-0.45, 0.45]   # Franka lateral reach ~0.5m each side
+    z: [0.85, 1.60]    # Base at z=0.8, max vertical reach ~0.8m above base
   # Gripper
   gripper_threshold: 0.5          # VLA output > 0.5 = close
   gripper_action_scale: 0.04      # Max gripper opening in meters
