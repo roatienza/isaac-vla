@@ -62,19 +62,18 @@ sim_bridge:
       prim_path: "/World/Franka/panda_hand/camera_wrist"  # Child of panda_hand (TCP, moves with arm)
       resolution: [256, 256]       # LIBERO default resolution (model resizes to 224)
       # Wrist camera attached to panda_hand. The optical axis (+Z in Isaac Sim)
-      # must point along +X of panda_hand (forward, in the direction the
-      # gripper fingers face).
+      # points toward the midpoint of the two gripper fingers (the panda_hand
+      # origin). The camera sits 5cm forward so it has a clear view of the
+      # gripper without clipping.
       #
       # panda_hand frame: +X = forward (finger direction), +Y = right, +Z = up
-      # Isaac Sim camera:  looks along +Z by default
+      # Gripper fingers extend along ±Y from the hand origin.
+      # Midpoint of fingers ≈ panda_hand origin = [0, 0, 0] (local coords).
       #
-      # Rotation needed: map +Z → +X  =  +90° about Y axis
-      # Quaternion (wxyz): [cos(π/4), 0, sin(π/4), 0] = [0.7071, 0, 0.7071, 0]
-      #
-      # Position offset: 5cm forward from the hand origin so the camera sits
-      # in front of the gripper and doesn't clip into the hand geometry.
+      # Camera at [0.05, 0, 0] looking toward [0, 0, 0] → optical axis
+      # points along -X (backward toward the gripper).
       position: [0.05, 0.0, 0.0]   # 5cm forward from panda_hand origin (local coords)
-      orientation_quat: [0.7071, 0.0, 0.7071, 0.0]  # wxyz, +90° about Y → looks along +X (finger direction)
+      target: [0.0, 0.0, 0.0]      # Midpoint of gripper fingers (hand origin)
       fovy: 75
       clipping_range_t_min: 0.01   # Near clip plane (m) — must be < position offset
       clipping_range_t_max: 2.0    # Far clip plane (m)
