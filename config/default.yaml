@@ -69,7 +69,7 @@ sim_bridge:
       # Isaac Sim camera optical axis = +Z. Explicit xyz rotation [-180, 0, -180]
       # (equivalent to 180° about Y) flips the camera so +Z points along -Z
       # (downward) in the hand frame.
-      position: [0.075, 0.0, 0.0]  # 7.5cm forward from panda_hand origin (local coords)
+      position: [0.05, 0.0, 0.0]  # 5cm forward from panda_hand origin (local coords)
       orientation_quat: [0.0, -0.707107, 0.707107, -0.0]  # xyz euler [-180, 0, -90] → wxyz
       focal_length: 1.2                       # Direct focal length (meters) — overrides fovy
       clipping_range_t_min: 0.01   # Near clip plane (m) — must be < position offset
