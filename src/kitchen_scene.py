@@ -661,14 +661,15 @@ class KitchenScene:
         self.world.scene.add(self.cameras["wrist"])
 
         # Override with LOCAL coordinates relative to panda_hand.
-        # The Camera constructor above received identity position/orientation,
-        # so no authored xform ops exist. We directly add the local transform
-        # ops via UsdGeom.Xformable.
+        # The Camera constructor already created default xform ops (translate,
+        # orient, scale) even with identity values. Use Get*Op() to retrieve
+        # the existing ops and overwrite their values, rather than Add*Op()
+        # which would fail because the ops already exist.
         xformable = UsdGeom.Xformable(camera_prim)
-        xformable.AddTranslateOp().Set(
+        xformable.GetTranslateOp().Set(
             Gf.Vec3d(float(wr_position[0]), float(wr_position[1]), float(wr_position[2]))
         )
-        xformable.AddOrientOp().Set(
+        xformable.GetOrientOp().Set(
             Gf.Quatd(
                 float(wr_orientation[0]),  # w
                 float(wr_orientation[1]),  # x
