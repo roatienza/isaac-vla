@@ -61,14 +61,15 @@ sim_bridge:
     wrist:
       prim_path: "/World/Franka/panda_hand/camera_wrist"  # Child of panda_hand (TCP, moves with arm)
       resolution: [256, 256]       # LIBERO default resolution (model resizes to 224)
-      # Wrist camera attached to panda_hand with identity orientation
-      # (all rotation angles = 0). The optical axis (+Z in Isaac Sim)
-      # points straight up in the panda_hand frame.
+      # Wrist camera attached to panda_hand, optical axis pointing along
+      # the finger direction (+X in panda_hand frame). The target is set
+      # further along +X so the look-at vector aligns with the fingers.
       #
-      # panda_hand frame: +X = forward, +Y = right, +Z = up
-      # Camera sits 5cm forward from the hand origin.
+      # panda_hand frame: +X = forward (finger direction), +Y = right, +Z = up
+      # Isaac Sim camera optical axis = +Z. Target [0.1, 0, 0] makes +Z
+      # point along +X via the auto-computed look-at quaternion.
       position: [0.05, 0.0, 0.0]   # 5cm forward from panda_hand origin (local coords)
-      orientation_quat: [1.0, 0.0, 0.0, 0.0]  # Identity — no rotation
+      target: [0.1, 0.0, 0.0]      # Further along +X → optical axis points along fingers
       fovy: 75
       clipping_range_t_min: 0.01   # Near clip plane (m) — must be < position offset
       clipping_range_t_max: 2.0    # Far clip plane (m)
