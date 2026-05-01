@@ -71,7 +71,7 @@ sim_bridge:
       # (downward) in the hand frame.
       position: [0.075, 0.0, 0.0]  # 7.5cm forward from panda_hand origin (local coords)
       orientation_quat: [0.0, 0.0, 1.0, 0.0]  # xyz euler [-180, 0, -180] → wxyz
-      fovy: 75
+      focal_length: 10                        # Direct focal length (meters) — overrides fovy
       clipping_range_t_min: 0.01   # Near clip plane (m) — must be < position offset
       clipping_range_t_max: 2.0    # Far clip plane (m)
   kitchen_scene:

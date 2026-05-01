@@ -628,11 +628,15 @@ class KitchenScene:
         geom_camera.GetHorizontalApertureAttr().Set(wr_resolution[1] / 10.0)  # tenths
         geom_camera.GetVerticalApertureAttr().Set(wr_resolution[0] / 10.0)
 
-        # Set fovy via focal length
-        import math
-        vert_aperture = wr_resolution[0] / 10.0
-        new_focal_length = (vert_aperture / (2.0 * math.tan(math.radians(wr_fovy / 2.0))))
-        geom_camera.GetFocalLengthAttr().Set(new_focal_length * 10.0)
+        # Set focal length — use explicit value from config if provided, otherwise derive from fovy
+        wr_focal_length = wr_config.get("focal_length", None)
+        if wr_focal_length is not None:
+            geom_camera.GetFocalLengthAttr().Set(wr_focal_length * 10.0)  # USD stores in tenths
+        else:
+            import math
+            vert_aperture = wr_resolution[0] / 10.0
+            new_focal_length = (vert_aperture / (2.0 * math.tan(math.radians(wr_fovy / 2.0))))
+            geom_camera.GetFocalLengthAttr().Set(new_focal_length * 10.0)
 
         # Set clipping range
         clipping_attr = camera_prim.GetAttribute("clippingRange")
