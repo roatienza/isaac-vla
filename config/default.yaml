@@ -40,46 +40,33 @@ sim_bridge:
     gripper_close_position: 0.0
     control_mode: "joint_position" # joint_position or end_effector_delta
     control_frequency: 30         # Hz
-    # LIBERO MountedPanda configuration:
-    # - Robot uses RethinkMount with top_offset (0, 0, 1.0)
-    # - base_xpos_offset for kitchen_table: (-0.16 - table_length/2, 0, 0)
-    #   where table_length=1.0, so offset = (-0.66, 0, 0)
-    # - Kitchen table offset: (0.0, 0, 0.90)
-    # - Robot base effectively at: (-0.66, 0, 0.90 + 1.0) = (-0.66, 0, 1.90) in MuJoCo
-    # - In Isaac Sim (z-up), we place base at table height with appropriate x-offset
-    #   to match the LIBERO geometry where robot is behind the table
-    # LIBERO MountedPanda geometry:
+    # LIBERO MountedPanda robot placement:
     # - base_xpos_offset for kitchen_table: (-0.16 - table_length/2, 0, 0) = (-0.66, 0, 0)
     # - top_offset (RethinkMount): (0, 0, 1.0)
     # - workspace_offset (table surface): (0, 0, 0.90)
-    # - panda_link0 position = (-0.66, 0, 0) + (0, 0, 1.0) + (0, 0, 0.90) = (-0.66, 0, 1.90)
-    # - Shoulder (panda_joint1) at z = 1.90 + 0.333 = 2.233
-    position: [-0.66, 0.0, 1.90]  # LIBERO-equivalent: base 1m above table, 0.66m behind table
+    # - Total: (-0.66, 0, 1.90)
+    position: [-0.66, 0.0, 1.90]  # LIBERO exact robot base position
   cameras:
     third_person:
       prim_path: "/World/camera_third"
       resolution: [256, 256]       # LIBERO default resolution (model resizes to 224)
-      # LIBERO agentview camera configuration (exact match from libero_kitchen_tabletop_manipulation.py):
-      #   pos: [0.6586131746834771, 0.0, 1.6103500240372423]
-      #   quat: [0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349] (wxyz)
-      # This is a front-facing view from slightly above and in front of the table.
-      # FOVY is 55 degrees (robosuite default for agentview cameras).
+      # LIBERO agentview camera from libero_kitchen_tabletop_manipulation.py:
+      # mujoco_arena.set_camera(camera_name="agentview", pos=[...], quat=[...])
+      # Exact values from LIBERO source — do not modify.
       position: [0.6586131746834771, 0.0, 1.6103500240372423]
-      orientation_quat: [0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349]  # wxyz - LIBERO agentview
-      fovy: 55
+      orientation_quat: [0.6380177736282349, 0.6380177736282349, 0.3048497438430786, 0.30484986305236816]  # wxyz — converted from LIBERO xyzw
+      fovy: 75  # LIBERO robosuite default camera fovy
+      clipping_range_t_min: 0.01   # Near clip plane (m)
+      clipping_range_t_max: 10.0   # Far clip plane (m)
     wrist:
       prim_path: "/World/Franka/panda_hand/camera_wrist"  # Child of panda_hand (TCP, moves with arm)
       resolution: [256, 256]       # LIBERO default resolution (model resizes to 224)
-      # LIBERO eye_in_hand camera: mounted on panda_hand, optical axis points
-      # FORWARD along +X (finger direction). This matches the training data
-      # where the wrist camera sees what's in front of the gripper.
-      #
-      # panda_hand frame: +X = forward (finger direction), +Y = right, +Z = up
-      # Isaac Sim camera optical axis = +Z. A -90° rotation about Y aligns
-      # the optical axis with +X (forward along fingers).
+      # LIBERO eye_in_hand camera from robosuite panda/robot.xml:
+      # <camera mode="fixed" name="eye_in_hand" pos="0.05 0 0" quat="0 0.707108 0.707108 0" fovy="75"/>
+      # Exact values from LIBERO source — do not modify.
       position: [0.05, 0.0, 0.0]  # 5cm forward from panda_hand origin (local coords)
-      orientation_quat: [0.707107, 0.0, -0.707107, 0.0]  # wxyz -90° about Y → looks forward along +X
-      focal_length: 0.8                       # Direct focal length (meters) — FOVY ~37°, closer to LIBERO training data
+      orientation_quat: [0.0, 0.0, 0.707108, 0.707108]  # wxyz — exact LIBERO eye_in_hand quat
+      fovy: 75  # LIBERO default fovy for wrist camera
       clipping_range_t_min: 0.01   # Near clip plane (m) — must be < position offset
       clipping_range_t_max: 2.0    # Far clip plane (m)
   kitchen_scene:
