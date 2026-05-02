@@ -400,7 +400,7 @@ it's because Isaac Sim's `python.sh` changes the working directory. Use **absolu
 ~/isaacsim/python.sh scripts/run_sim_bridge.py
 
 # CORRECT:
-~/isaacsim/python.sh /home/user/roatienza-vla-franka-research/isaac-vla/scripts/run_sim_bridge.py
+~/isaacsim/python.sh /path/to/isaac-vla/scripts/run_sim_bridge.py
 ```
 
 All isaac-vla scripts automatically detect their location and set the working directory

@@ -231,7 +231,7 @@ print(result)
 >
 > ```bash
 > # CORRECT:
-> ~/isaacsim/python.sh /home/user/roatienza-vla-franka-research/isaac-vla/scripts/run_sim_bridge.py
+> ~/isaacsim/python.sh /path/to/isaac-vla/scripts/run_sim_bridge.py
 >
 > # WRONG:
 > ~/isaacsim/python.sh scripts/run_sim_bridge.py
