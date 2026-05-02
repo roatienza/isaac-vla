@@ -1,5 +1,7 @@
 # Isaac-VLA Default Configuration
 # ================================
+# Supports both Isaac Sim and LIBERO MuJoCo environments.
+# For LIBERO evaluation, use scripts/run_libero_eval.py
 
 # VLA Server Configuration
 vla_server:
@@ -27,9 +29,9 @@ sim_bridge:
   port: 8889
   isaac_sim:
     headless: false
-    physics_dt: 0.0083            # 120 Hz
-    render_dt: 0.0333             # 30 Hz
-    render_interval: 4            # Render every 4 physics steps
+    physics_dt: 0.0083  # 120 Hz physics, stepped to 10 Hz control            # 120 Hz
+    render_dt: 0.1             # 30 Hz
+    render_interval: 12            # Render every 4 physics steps
     width: 1280
     height: 720
   robot:
@@ -39,22 +41,21 @@ sim_bridge:
     gripper_open_position: 0.04
     gripper_close_position: 0.0
     control_mode: "joint_position" # joint_position or end_effector_delta
-    control_frequency: 30         # Hz
-    # LIBERO MountedPanda robot placement:
-    # - base_xpos_offset for kitchen_table: (-0.16 - table_length/2, 0, 0) = (-0.66, 0, 0)
-    # - top_offset (RethinkMount): (0, 0, 1.0)
-    # - workspace_offset (table surface): (0, 0, 0.90)
-    # - Total: (-0.66, 0, 1.90)
-    position: [-0.66, 0.0, 1.90]  # LIBERO exact robot base position
+    control_frequency: 10         # Hz
+    # Robot placement for Isaac Sim (simplified from LIBERO):
+    # - Robot base on floor behind table, facing +X towards table
+    # - Table surface at z=0.90, robot base at z=0.0 (floor)
+    # - Robot at x=-0.3 (30cm behind table edge at x=0)
+    position: [-0.3, 0.0, 0.0]  # Robot base on floor behind table
+    orientation_quat: [0.0, 0.0, 0.707107, 0.707107]  # wxyz - rotate 90° about Z to face +X
   cameras:
     third_person:
       prim_path: "/World/camera_third"
       resolution: [256, 256]       # LIBERO default resolution (model resizes to 224)
-      # LIBERO agentview camera from libero_kitchen_tabletop_manipulation.py:
-      # mujoco_arena.set_camera(camera_name="agentview", pos=[...], quat=[...])
-      # Exact values from LIBERO source — do not modify.
-      position: [0.6586131746834771, 0.0, 1.6103500240372423]
-      orientation_quat: [0.6380177736282349, 0.6380177736282349, 0.3048497438430786, 0.30484986305236816]  # wxyz — converted from LIBERO xyzw
+      # Positioned in front of table, elevated, looking down at workspace
+      position: [0.5, 0.9, 1.5]
+      # Look-at target: center of table workspace
+      target: [0.5, 0.0, 0.9]
       fovy: 75  # LIBERO robosuite default camera fovy
       clipping_range_t_min: 0.01   # Near clip plane (m)
       clipping_range_t_max: 10.0   # Far clip plane (m)
@@ -129,6 +130,16 @@ episode:
   vla_query_frequency: 8          # Re-query VLA every N sim steps
   reset_on_success: true
   reset_on_failure: true
+
+# LIBERO MuJoCo Configuration
+libero:
+  task_suite: "libero_spatial"  # libero_spatial, libero_object, libero_goal, libero_10, libero_90
+  task_id: 0                    # Task ID within suite (0-9 for standard suites)
+  num_episodes: 10              # Episodes per task during evaluation
+  camera_heights: 256           # Camera resolution (matches training)
+  camera_widths: 256
+  center_crop: true             # Center crop to 224x224 (OpenVLA-OFT preprocessing)
+  target_size: [224, 224]       # Final image size after preprocessing
 
 # Data Collection Configuration
 data_collection:

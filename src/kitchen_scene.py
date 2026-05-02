@@ -734,6 +734,10 @@ class KitchenScene:
     def get_camera_images(self) -> Dict[str, np.ndarray]:
         """Capture images from all cameras.
 
+        IMPORTANT: Images are rotated 180 degrees to match LIBERO/OpenVLA-OFT
+        training preprocessing. See libero_utils.py:
+            img = img[::-1, ::-1]  # rotate 180 degrees to match train preprocessing
+
         Returns:
             Dict with "third_person" and "wrist" images as numpy arrays (H, W, 3) uint8
         """
@@ -758,6 +762,11 @@ class KitchenScene:
                     else:
                         logger.warning(f"Camera '{name}' returned unexpected array shape {rgba.shape}")
                         continue
+
+                    # CRITICAL: Rotate 180 degrees to match LIBERO/OpenVLA-OFT training preprocessing
+                    # Without this rotation, the model sees upside-down images and performance degrades
+                    img = img[::-1, ::-1]
+
                     images[name] = img
                 else:
                     logger.warning(f"Camera '{name}' returned None — "
