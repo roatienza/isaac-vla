@@ -40,50 +40,64 @@ sim_bridge:
     gripper_close_position: 0.0
     control_mode: "joint_position" # joint_position or end_effector_delta
     control_frequency: 30         # Hz
-    # Position of the robot base (panda_link0). The Franka URDF places
-    # panda_joint1 (shoulder) at z=0.333 relative to panda_link0.
-    # Setting position z = table_height ensures the robot base sits
-    # flush with the table surface, matching a typical real-world mount.
-    position: [0.25, 0.0, 0.8]    # 0.5m away from table center (center at x=0.75)
+    # LIBERO MountedPanda configuration:
+    # - Robot uses RethinkMount with top_offset (0, 0, 1.0)
+    # - base_xpos_offset for kitchen_table: (-0.16 - table_length/2, 0, 0)
+    #   where table_length=1.0, so offset = (-0.66, 0, 0)
+    # - Kitchen table offset: (0.0, 0, 0.90)
+    # - Robot base effectively at: (-0.66, 0, 0.90 + 1.0) = (-0.66, 0, 1.90) in MuJoCo
+    # - In Isaac Sim (z-up), we place base at table height with appropriate x-offset
+    #   to match the LIBERO geometry where robot is behind the table
+    # LIBERO MountedPanda geometry:
+    # - base_xpos_offset for kitchen_table: (-0.16 - table_length/2, 0, 0) = (-0.66, 0, 0)
+    # - top_offset (RethinkMount): (0, 0, 1.0)
+    # - workspace_offset (table surface): (0, 0, 0.90)
+    # - panda_link0 position = (-0.66, 0, 0) + (0, 0, 1.0) + (0, 0, 0.90) = (-0.66, 0, 1.90)
+    # - Shoulder (panda_joint1) at z = 1.90 + 0.333 = 2.233
+    position: [-0.66, 0.0, 1.90]  # LIBERO-equivalent: base 1m above table, 0.66m behind table
   cameras:
     third_person:
       prim_path: "/World/camera_third"
       resolution: [256, 256]       # LIBERO default resolution (model resizes to 224)
-      # Camera elevated above and to the side of the robot, looking down
-      # at the table. The ``target`` is the center of the table surface,
-      # computed from kitchen_scene config:
-      #   table_center_x = table_depth / 2 = 0.75
-      #   table_surface_z = table_height = 0.8
-      # The orientation is auto-computed via look-at (no explicit quat needed).
-      position: [0.8386, 0.0, 2.2904]
-      target: [0.75, 0.0, 0.8]  # Table surface center
-      fovy: 75
+      # LIBERO agentview camera configuration (exact match from libero_kitchen_tabletop_manipulation.py):
+      #   pos: [0.6586131746834771, 0.0, 1.6103500240372423]
+      #   quat: [0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349] (wxyz)
+      # This is a front-facing view from slightly above and in front of the table.
+      # FOVY is 55 degrees (robosuite default for agentview cameras).
+      position: [0.6586131746834771, 0.0, 1.6103500240372423]
+      orientation_quat: [0.6380177736282349, 0.3048497438430786, 0.30484986305236816, 0.6380177736282349]  # wxyz - LIBERO agentview
+      fovy: 55
     wrist:
       prim_path: "/World/Franka/panda_hand/camera_wrist"  # Child of panda_hand (TCP, moves with arm)
       resolution: [256, 256]       # LIBERO default resolution (model resizes to 224)
-      # Wrist camera attached to panda_hand, optical axis pointing DOWN
-      # toward the gripper fingers (-Z in panda_hand frame). This matches
-      # the LIBERO wrist camera viewpoint which looks down at the gripper.
+      # LIBERO eye_in_hand camera: mounted on panda_hand, optical axis points
+      # FORWARD along +X (finger direction). This matches the training data
+      # where the wrist camera sees what's in front of the gripper.
       #
       # panda_hand frame: +X = forward (finger direction), +Y = right, +Z = up
-      # Isaac Sim camera optical axis = +Z. A 180° rotation about Y flips
-      # the camera so optical axis points along -Z (downward) in the hand frame.
+      # Isaac Sim camera optical axis = +Z. A -90° rotation about Y aligns
+      # the optical axis with +X (forward along fingers).
       position: [0.05, 0.0, 0.0]  # 5cm forward from panda_hand origin (local coords)
-      orientation_quat: [0.0, 0.0, 1.0, 0.0]  # xyz euler [0, 180, 0] → wxyz (180° about Y, looks down)
+      orientation_quat: [0.707107, 0.0, -0.707107, 0.0]  # wxyz -90° about Y → looks forward along +X
       focal_length: 0.8                       # Direct focal length (meters) — FOVY ~37°, closer to LIBERO training data
       clipping_range_t_min: 0.01   # Near clip plane (m) — must be < position offset
       clipping_range_t_max: 2.0    # Far clip plane (m)
   kitchen_scene:
     usd_path: null                # null = build programmatically
-    table_height: 0.8
-    table_width: 1.5
-    table_depth: 1.5
+    # LIBERO kitchen table configuration:
+    # - kitchen_table_full_size: (1.0, 1.2, 0.05) → length=1.0, width=1.2
+    # - kitchen_table_offset: (0.0, 0, 0.90) → table surface at z=0.90
+    # - Robot base_xpos_offset: (-0.16 - table_length/2, 0, 0) = (-0.66, 0, 0)
+    # - Robot top_offset: (0, 0, 1.0) from mount
+    table_height: 0.90            # LIBERO kitchen table surface at z=0.90
+    table_width: 1.2              # LIBERO kitchen table width (y-axis)
+    table_depth: 1.0              # LIBERO kitchen table length (x-axis)
     objects:
       - name: "red_block"
         type: "cube"
         size: 0.04
         color: [1.0, 0.0, 0.0]
-        position: [0.75, 0.0, 0.82]  # Center of the 1.5m table
+        position: [0.50, 0.0, 0.92]  # Center of the 1.0m LIBERO kitchen table (z=0.90 + half block size)
 
 # Action Pipeline Configuration
 action_pipeline:
@@ -109,9 +123,13 @@ action_pipeline:
   max_ee_velocity: 0.2            # m/s
   max_joint_velocity: 1.0         # rad/s
   workspace_bounds:
-    x: [0.15, 1.10]    # Franka base at x=0.25, max reach ~0.85m forward
-    y: [-0.45, 0.45]   # Franka lateral reach ~0.5m each side
-    z: [0.85, 1.60]    # Base at z=0.8, max vertical reach ~0.8m above base
+    # LIBERO kitchen table workspace:
+    # - Table surface at z=0.90, extends x=[0.0, 1.0], y=[-0.6, 0.6]
+    # - Robot base at x=-0.16 (behind table), shoulder at z≈1.23
+    # - Reachable workspace on table surface:
+    x: [0.0, 1.0]      # Table surface extent (x-axis)
+    y: [-0.55, 0.55]   # Table surface extent (y-axis), slightly inset
+    z: [0.90, 1.70]    # Table surface to max reach above table
   # Gripper
   gripper_threshold: 0.5          # VLA output > 0.5 = close
   gripper_action_scale: 0.04      # Max gripper opening in meters

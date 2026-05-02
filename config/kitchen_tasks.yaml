@@ -10,7 +10,7 @@ tasks:
     success_condition:
       type: "object_at_location"
       object: "red_block"
-      target_position: [0.7, 0.0, 0.82]  # On the plate
+      target_position: [0.7, 0.0, 0.92]  # On the plate (z=0.90 table + 0.02 block half-height)
       tolerance: 0.05
     max_steps: 200
     objects_needed: ["red_block", "white_plate"]
