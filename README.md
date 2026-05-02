@@ -242,6 +242,84 @@ print(result)
 > even when launched from outside the project directory.
 ```
 
+## Running with LIBERO & MuJoCo (Recommended for Benchmarking)
+
+For **benchmark evaluation and fine-tuning**, using the **LIBERO MuJoCo environment** is strongly recommended over Isaac Sim because:
+
+- **Zero visual domain gap**: Same MuJoCo OpenGL renderer as OpenVLA-OFT training data
+- **Same physics engine**: MuJoCo dynamics match training distribution exactly
+- **No IK solving**: Direct delta EE action execution (no IK failures)
+- **Proven pipeline**: LIBERO evaluation works out-of-the-box with OpenVLA-OFT checkpoints
+- **Faster iteration**: MuJoCo runs faster than Isaac Sim for benchmark evaluation
+
+### Installation
+
+```bash
+# 1. Install LIBERO
+pip install libero
+
+# 2. Download LIBERO datasets (required for evaluation)
+cd LIBERO  # Clone from https://github.com/Lifelong-Robot-Learning/LIBERO
+python benchmark_scripts/download_libero_datasets.py
+
+# 3. Install MuJoCo (usually comes with LIBERO)
+pip install mujoco
+```
+
+### Running LIBERO Evaluation
+
+```bash
+# Start VLA server (Terminal 1)
+python scripts/run_vla_server.py --config config/default.yaml
+
+# Evaluate on a single task (Terminal 2)
+python scripts/run_libero_eval.py --task-suite libero_spatial --task-id 0
+
+# Evaluate all tasks in a suite
+python scripts/run_libero_eval.py --task-suite libero_spatial --all-tasks
+
+# Evaluate all LIBERO suites
+python scripts/run_libero_eval.py --all-suites
+
+# Record videos during evaluation
+python scripts/run_libero_eval.py --task-suite libero_spatial --task-id 0 --record-video
+
+# Custom number of episodes
+python scripts/run_libero_eval.py --task-suite libero_spatial --task-id 0 --num-episodes 10
+```
+
+### LIBERO Task Suites
+
+| Suite | Tasks | Description |
+|-------|-------|-------------|
+| `libero_spatial` | 5 | Spatial reasoning (pick & place to different locations) |
+| `libero_object` | 5 | Object manipulation (different target objects) |
+| `libero_goal` | 5 | Goal conditioning (achieve different end states) |
+| `libero_10` | 10 | Combined spatial + object + goal tasks |
+| `libero_spatial_2` | 5 | Additional spatial tasks |
+| `libero_object_2` | 5 | Additional object tasks |
+| `libero_goal_2` | 5 | Additional goal tasks |
+| `libero_10_2` | 10 | Combined additional tasks |
+
+### Why Use LIBERO Instead of Isaac Sim?
+
+| Feature | LIBERO (MuJoCo) | Isaac Sim |
+|---------|----------------|-----------|
+| **Visual Domain Gap** | ✅ Zero (matches training) | ❌ Different renderer |
+| **Physics** | ✅ MuJoCo (matches training) | ❌ PhysX (different) |
+| **IK Failures** | ✅ None (direct EE control) | ⚠️ Possible |
+| **Speed** | ✅ Fast (~10-30 FPS) | ⚠️ Slower (~5-15 FPS) |
+| **Realism** | ❌ Synthetic | ✅ Realistic rendering |
+| **Use Case** | Benchmark evaluation, fine-tuning | Real-world deployment prep |
+
+### When to Use Isaac Sim
+
+Use Isaac Sim when you need:
+- **Realistic rendering** for real-world deployment preparation
+- **PhysX physics** for real robot simulation
+- **Advanced sensor simulation** (depth, segmentation, etc.)
+- **Custom scene building** beyond LIBERO tasks
+
 ## File Structure
 
 ```
@@ -258,6 +336,7 @@ isaac-vla/
 │   ├── api.py                       # Python API (embedded + remote)
 │   ├── vla_server.py                # OpenVLA-OFT inference server
 │   ├── sim_bridge.py                # Isaac Sim bridge (Franka + kitchen)
+│   ├── libero_bridge.py             # LIBERO MuJoCo bridge (benchmark eval)
 │   ├── action_pipeline.py           # VLA action → sim action pipeline
 │   ├── ik_solver.py                 # Inverse kinematics solvers
 │   ├── kitchen_scene.py             # Kitchen scene builder
@@ -267,6 +346,7 @@ isaac-vla/
 ├── scripts/
 │   ├── run_vla_server.py            # VLA server launcher
 │   ├── run_sim_bridge.py            # Sim bridge launcher
+│   ├── run_libero_eval.py           # LIBERO evaluation runner
 │   ├── run_tui_client.py            # Rich TUI client
 │   ├── collect_demonstrations.py    # Data collection script
 │   ├── evaluate_tasks.py            # Evaluation runner
