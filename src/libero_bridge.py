@@ -217,8 +217,9 @@ class LIBEROBridge:
         self.env = OffScreenRenderEnv(**env_args)
         self.env.seed(0)  # IMPORTANT: seed seems to affect object positions
 
-        # Get initial states
-        self.init_states = self.env.get_all_initial_states()
+        # Get initial states from task suite (takes int index, not Task object)
+        # OffScreenRenderEnv does NOT have get_all_initial_states()
+        self.init_states = self.task_suite.get_task_init_states(self.task_id)
 
         # Update unnorm_key based on task suite
         self._update_unnorm_key()
@@ -244,18 +245,20 @@ class LIBEROBridge:
                 f"Using default: {self._unnorm_key}"
             )
 
-    def _capture_observation(self) -> Dict[str, np.ndarray]:
-        """Capture observation from LIBERO environment.
+    def _capture_observation(self, obs: Dict[str, Any]) -> Dict[str, np.ndarray]:
+        """Process observation from LIBERO environment.
+
+        In robosuite/LIBERO, camera images are part of the observation dict
+        returned by env.reset() and env.step(). We do NOT call sim.render()
+        manually — that API has changed in modern MuJoCo.
+
+        Args:
+            obs: Raw observation dict from env.reset() or env.step()
 
         Returns:
             Dict with 'full_image', 'wrist_image', and 'state'
         """
-        obs = self.env.sim.render(
-            camera_heights=self.camera_heights,
-            camera_widths=self.camera_widths,
-        )
-
-        # Extract images
+        # Extract images from observation dict
         full_image = obs["agentview_image"]
         wrist_image = obs["robot0_eye_in_hand_image"]
 
@@ -264,8 +267,11 @@ class LIBEROBridge:
         full_image = full_image[::-1, ::-1]
         wrist_image = wrist_image[::-1, ::-1]
 
-        # Get proprioception state
-        state = obs["robot0_joint_pos"].copy()
+        # Get proprioception state (7 joint positions + 1 gripper width)
+        state = np.concatenate([
+            obs["robot0_joint_pos"].copy(),
+            obs["robot0_gripper_qpos"].copy(),
+        ])
         gripper_pos = obs["robot0_gripper_qpos"].copy()
         state = np.concatenate([state, gripper_pos])
 
@@ -354,15 +360,15 @@ class LIBEROBridge:
                     t += 1
                     continue
 
-                # Capture observation
-                observation = self._capture_observation()
-
-                # Record video frame if enabled
-                if self._recording:
-                    self._video_frames.append(observation["full_image"])
-
                 # If action queue is empty, requery VLA
                 if len(self._action_queue) == 0:
+                    # Capture observation before querying VLA
+                    observation = self._capture_observation(obs)
+
+                    # Record video frame if enabled
+                    if self._recording:
+                        self._video_frames.append(observation["full_image"])
+
                     result = self._query_vla(observation, instruction)
                     if result is not None and "actions" in result:
                         actions = result["actions"]
@@ -377,13 +383,12 @@ class LIBEROBridge:
                         logger.warning("VLA query returned no actions, using dummy action")
                         self._action_queue.append(self._get_dummy_action())
 
-                # Get action from queue
+                # Get action from queue and execute
                 if len(self._action_queue) > 0:
                     action = self._action_queue.popleft()
                 else:
                     action = self._get_dummy_action()
 
-                # Execute action in environment
                 obs, reward, done, info = self.env.step(action.tolist())
                 if done:
                     success = True

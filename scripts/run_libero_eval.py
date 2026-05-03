@@ -50,6 +50,16 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List
 
+# Resolve project root from this script's absolute location
+_SCRIPT_DIR = Path(__file__).resolve().parent
+_PROJECT_ROOT = _SCRIPT_DIR.parent
+
+# Add project root to path (must be absolute since python.sh may change cwd)
+sys.path.insert(0, str(_PROJECT_ROOT))
+
+# Also set working directory to project root so config files resolve correctly
+os.chdir(str(_PROJECT_ROOT))
+
 import numpy as np
 
 from src.libero_bridge import LIBEROBridge, TASK_MAX_STEPS
