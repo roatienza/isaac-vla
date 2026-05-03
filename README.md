@@ -26,6 +26,8 @@ Get up and running with LIBERO benchmark evaluation in 5 minutes:
 # 1. Clone and install
 git clone https://github.com/roatienza/isaac-vla
 cd isaac-vla
+conda create -n vla-oft python=3.10 -y
+conda activate vla-oft
 pip install -r requirements.txt
 pip install libero
 
@@ -62,8 +64,8 @@ cd isaac-vla
 ### Step 2: Create Conda Environment
 
 ```bash
-conda create -n isaac-vla python=3.10 -y
-conda activate isaac-vla
+conda create -n vla-oft python=3.10 -y
+conda activate vla-oft
 ```
 
 ### Step 3: Install Dependencies
