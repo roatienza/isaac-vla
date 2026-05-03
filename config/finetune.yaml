@@ -1,102 +1,130 @@
-# Fine-Tuning Configuration
-# =========================
-# Configuration for fine-tuning OpenVLA-OFT on Franka kitchen data
+# Fine-Tuning Configuration for LIBERO
+# =====================================
+# Configuration for fine-tuning OpenVLA-OFT on LIBERO datasets
 
 # Model Configuration
 model:
-  base_checkpoint: "moojink/openvla-7b-oft-finetuned-libero-spatial"
-  # Or start from base: "openvla/openvla-7b"
+  base_checkpoint: "openvla/openvla-7b"
+  # Pretrained checkpoints (task-specific):
+  #   "moojink/openvla-7b-oft-finetuned-libero-spatial"
+  #   "moojink/openvla-7b-oft-finetuned-libero-object"
+  #   "moojink/openvla-7b-oft-finetuned-libero-goal"
+  #   "moojink/openvla-7b-oft-finetuned-libero-10"
   
-  # Action head configuration
+  # Action head configuration (OFT recipe)
   use_l1_regression: true
   use_diffusion: false
   use_film: false
   
   # Input configuration
-  num_images_in_input: 2      # third-person + wrist
+  num_images_in_input: 2      # agentview + wrist camera
   use_proprio: true
   proprio_dim: 8              # 7 joint angles + 1 gripper width
-  center_crop: true
+  center_crop: true           # Important: matches training augmentation
   
   # Action configuration
   num_actions_chunk: 8        # Predict 8 actions at a time
   action_dim: 7               # 7-DOF delta EE pose (dx,dy,dz,droll,dpitch,dyaw,gripper)
 
-# Dataset Configuration
+# Dataset Configuration (LIBERO RLDS format)
 dataset:
-  name: "franka_kitchen"
-  data_dir: "./data/demonstrations"
-  format: "rlds"
+  # Available suites: libero_spatial, libero_object, libero_goal, libero_10
+  # All datasets are in RLDS format with "_no_noops" suffix
+  suites:
+    libero_spatial:
+      name: "libero_spatial_no_noops"
+      tasks: 10
+      max_steps: 220
+      demos_per_task: 50
+    libero_object:
+      name: "libero_object_no_noops"
+      tasks: 10
+      max_steps: 280
+      demos_per_task: 50
+    libero_goal:
+      name: "libero_goal_no_noops"
+      tasks: 10
+      max_steps: 300
+      demos_per_task: 50
+    libero_10:
+      name: "libero_10_no_noops"
+      tasks: 10
+      max_steps: 520
+      demos_per_task: 50
+    libero_90:
+      name: "libero_90_no_noops"
+      tasks: 90
+      max_steps: 400
+      demos_per_task: 50
   
-  # Dataset statistics (computed from collected data)
-  # These will be auto-computed during dataset preparation
-  dataset_statistics:
-    franka_kitchen:
-      action:
-        min: [-1.0, -1.0, -1.0, -3.14, -3.14, -3.14, 0.0]
-        max: [1.0, 1.0, 1.0, 3.14, 3.14, 3.14, 1.0]
-        mean: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5]
-        std: [0.3, 0.3, 0.3, 0.5, 0.5, 0.5, 0.3]
-      proprio:
-        min: [-2.9, -1.76, -2.9, -3.07, -2.9, -0.01, -2.9, 0.0]
-        max: [2.9, 1.76, 2.9, 3.07, 2.9, 0.04, 2.9, 0.04]
+  # Data root (RLDS datasets directory)
+  data_root_dir: "/home/rowel/sandbox/openvla-oft/datasets/rlds"
+  
+  # Dataset statistics are auto-computed during training
+  # Action normalization: bounds_q99 (99th percentile clipping)
 
-# Training Configuration
+# Training Configuration (OFT hyperparameters)
 training:
   # Fine-tuning method
-  method: "lora"              # "lora" or "full"
+  method: "lora"              # "lora" recommended for LIBERO
   
-  # LoRA configuration (if method=lora)
+  # LoRA configuration
   lora:
-    rank: 32
+    rank: 32                  # r=32 (matches OFT paper)
     alpha: 32
     dropout: 0.0
     target_modules: ["q_proj", "v_proj", "k_proj", "o_proj"]
   
   # Optimizer
   optimizer: "adamw"
-  learning_rate: 5.0e-5
+  learning_rate: 5.0e-4       # 5e-4 (matches OFT paper)
   weight_decay: 0.01
-  warmup_steps: 500
+  lr_warmup_steps: 0
+  num_steps_before_decay: 100000  # 10x LR decay after 100K steps
   
-  # Batch and accumulation
-  batch_size: 2               # Per GPU
-  gradient_accumulation_steps: 4
-  effective_batch_size: 8     # batch_size * grad_accum * num_gpus
+  # Batch size (RTX 5090: 32GB VRAM)
+  batch_size: 1               # ~25GB VRAM per GPU
+  # batch_size: 8             # ~62GB VRAM per GPU (A100/H100)
+  gradient_accumulation_steps: 1
   
   # Schedule
-  num_epochs: 20
-  max_steps: 50000
-  lr_scheduler: "cosine"
+  max_steps: 150005           # 150K steps (matches OFT paper)
+  # For LIBERO-Goal only: 50K steps performed best
   
   # Precision
   dtype: "bfloat16"
   
   # Checkpointing
-  save_every: 1000
-  eval_every: 500
-  save_dir: "./checkpoints/franka_kitchen"
+  save_freq: 10000            # Save every 10K steps
+  save_latest_only: false
+  save_dir: "/home/rowel/sandbox/isaac-vla/checkpoints"
   
   # Data augmentation
-  augmentation:
-    random_crop: true
-    color_jitter: [0.1, 0.1, 0.1, 0.05]  # brightness, contrast, saturation, hue
-    random_rotation: 5.0      # degrees
+  image_aug: true             # Random crop (90% area) + color jitter
   
   # Logging
   wandb:
-    enabled: true
-    project: "isaac-vla"
+    enabled: false            # Set to true for W&B logging
+    project: "isaac-vla-libero"
     entity: null
-    name: "franka-kitchen-oft-lora32"
+    name: "libero-ft-lora32"
 
-# Evaluation during training
+# Evaluation Configuration
 eval:
-  eval_frequency: 500
-  num_episodes: 10
-  task_list:
-    - "pick_red_block"
-    - "place_red_on_plate"
-    - "stack_red_on_blue"
-  save_videos: true
+  eval_frequency: 10000       # Evaluate every 10K steps
+  num_episodes: 50            # 50 episodes per task
+  num_trials_per_task: 500    # 10 tasks x 50 episodes
+  record_video: true
   video_dir: "./eval_videos"
+
+# Expected Results (from OFT paper, A100 GPU)
+# =============================================
+# Task Suite          | Base OpenVLA | LoRA Fine-tuned | Full Fine-tuned
+# --------------------|--------------|-----------------|----------------
+# LIBERO-Spatial      | ~15%         | ~97%            | ~98%
+# LIBERO-Object       | ~10%         | ~95%            | ~96%
+# LIBERO-Goal         | ~12%         | ~96%            | ~97%
+# LIBERO-10           | ~8%          | ~94%            | ~95%
+#
+# Training time: ~6-8 hours on 8x A100 (150K steps, bs=8)
+# Training time: ~24-32 hours on 1x RTX 5090 (150K steps, bs=1)

@@ -1,1 +1,5 @@
 __pycache__/
+# Data artifacts
+data/libero_videos/
+data/libero_results/
+checkpoints/
