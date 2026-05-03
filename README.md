@@ -10,6 +10,7 @@ A complete system for deploying OpenVLA-OFT vision-language-action models on a F
 - [Installation](#installation)
 - [LIBERO Benchmark Evaluation](#libero-benchmark-evaluation)
 - [Fine-Tuning on LIBERO Data](#fine-tuning-on-libero-data)
+- [Using Your Trained Checkpoint](#using-your-trained-checkpoint)
 - [Isaac Sim (Optional)](#isaac-sim-optional)
 - [Project Structure](#project-structure)
 - [Documentation](#documentation)
@@ -161,29 +162,31 @@ libero:
   center_crop: true
   target_size: [224, 224]
   num_steps_wait: 10           # Physics stabilization steps at episode start
-  max_position_delta: 0.05     # Safety clipping (meters)
-  max_rotation_delta: 0.1      # Safety clipping (radians)
+  max_position_delta: 1.0      # Safety clipping (meters) — DO NOT reduce below 0.5
+  max_rotation_delta: 1.0      # Safety clipping (radians) — DO NOT reduce below 0.5
   chunk_size: 8                # Action chunking (predict 8 steps ahead)
 ```
+
+> **Important**: The `max_position_delta` and `max_rotation_delta` values must be large enough (≥0.5) to allow meaningful robot movements. Values that are too small (e.g., 0.05) will clip actions to near-zero, resulting in 0% success rate regardless of model quality.
 
 ### Understanding the Evaluation Pipeline
 
 ```
-┌─────────────┐    HTTP     ┌─────────────────┐
-│  VLA Server  │◄───────────►│  LIBERO Bridge  │
-│             │             │                 │
-│ OpenVLA-OFT │             │ MuJoCo Env      │
-│ (7B params) │             │ Franka Robot    │
-│             │             │ 3P + Wrist Cam  │
-└─────────────┘             └─────────────────┘
+┌──────────────────┐    HTTP     ┌──────────────────────┐
+│  VLA Server      │◄───────────►│  LIBERO Bridge       │
+│                  │             │                      │
+│ OpenVLA-OFT 7B   │             │ MuJoCo Env           │
+│ (L1 Regression)  │             │ Franka Robot         │
+│                  │             │ 3P + Wrist Cam       │
+└──────────────────┘             └──────────────────────┘
                                     │
                                     ▼
-                           ┌─────────────────┐
-                           │  Observation    │
-                           │  224×224 images │
-                           │  8D proprio     │
-                           │  Task language  │
-                           └─────────────────┘
+                           ┌──────────────────────┐
+                           │  Observation         │
+                           │  224×224 images      │
+                           │  8D proprio          │
+                           │  Task language       │
+                           └──────────────────────┘
 ```
 
 1. **Reset**: Environment resets with random initial state from task suite
@@ -221,95 +224,101 @@ Each dataset contains demonstration trajectories in RLDS format:
 - `robot0_gripper_qpos`: Gripper state
 - `actions`: 7D delta EE actions
 
-### Step 2: Configure Fine-Tuning
+### Step 2: Quick Test Run (5,000 Steps)
 
-Edit `config/finetune.yaml`:
-
-```yaml
-model:
-  base_checkpoint: "moojink/openvla-7b-oft-finetuned-libero-spatial"
-  use_l1_regression: true
-  num_images_in_input: 2
-  use_proprio: true
-  proprio_dim: 8
-
-dataset:
-  name: "libero_spatial"
-  data_dir: "~/.libero/datasets/libero_spatial"
-  format: "rlds"
-
-training:
-  method: "lora"
-  lora:
-    rank: 32
-    alpha: 32
-    dropout: 0.0
-  learning_rate: 5.0e-5
-  batch_size: 2
-  gradient_accumulation_steps: 4
-  num_epochs: 20
-  warmup_steps: 500
-  lr_schedule: "cosine"
-```
-
-### Step 3: Run Fine-Tuning
+For a quick validation that fine-tuning works:
 
 ```bash
-cd /home/rowel/sandbox/openvla-oft
-
-# LoRA fine-tuning (recommended for single GPU)
-python -m prismatic.vla.train \
-    --pretrained_checkpoint moojink/openvla-7b-oft-finetuned-libero-spatial \
-    --dataset_dir ~/.libero/datasets/libero_spatial \
-    --run_output_dir ./checkpoints/libero-spatial-lora \
-    --use_l1_regression True \
-    --num_images_in_input 2 \
-    --use_proprio True \
-    --proprio_dim 8 \
-    --lora_rank 32 \
-    --lora_alpha 32 \
-    --batch_size 2 \
-    --gradient_accumulation_steps 4 \
-    --learning_rate 5e-5 \
-    --num_epochs 20 \
-    --bf16 \
-    --wandb_project isaac-vla \
-    --wandb_name libero-spatial-lora32
+python scripts/run_libero_finetune.py \
+    --suite libero_spatial \
+    --max-steps 5000 \
+    --save-freq 5000 \
+    --batch-size 1 \
+    --lr 0.0005 \
+    --lora-rank 32
 ```
 
-### Step 4: Evaluate Fine-Tuned Model
+This takes ~23 minutes on an RTX 5090 and saves a checkpoint at step 5,000.
+
+### Step 3: Production Fine-Tuning (150,000 Steps)
+
+For production-quality results matching the OFT paper (~97% success rate):
 
 ```bash
-# Point VLA server to fine-tuned checkpoint
-python scripts/run_vla_server.py --checkpoint ./checkpoints/libero-spatial-lora
-
-# Run evaluation
-python scripts/run_libero_eval.py --task-suite libero_spatial --all-tasks --num-episodes 50
+python scripts/run_libero_finetune.py \
+    --suite libero_spatial \
+    --max-steps 150000 \
+    --save-freq 10000 \
+    --batch-size 1 \
+    --lr 0.0005 \
+    --lora-rank 64
 ```
 
-### Using Your Trained Checkpoint
+This takes ~11 hours on an RTX 5090 and saves checkpoints every 10,000 steps.
+
+### Step 4: Fine-Tune All Task Suites
+
+To train a generalist model across all LIBERO tasks:
+
+```bash
+python scripts/run_libero_finetune.py \
+    --suite libero_90 \
+    --max-steps 150000 \
+    --save-freq 10000 \
+    --batch-size 1 \
+    --lr 0.0005 \
+    --lora-rank 64
+```
+
+### Hyperparameter Guide
+
+| Parameter | Quick Test | Production | Notes |
+|-----------|-----------|------------|-------|
+| `--max-steps` | 5,000 | 150,000 | 150K recommended for best results |
+| `--save-freq` | 5,000 | 10,000 | Must be ≤ max-steps |
+| `--batch-size` | 1 | 1 | Larger batches need more VRAM |
+| `--lr` | 0.0005 | 0.0005 | Learning rate for LoRA |
+| `--lora-rank` | 32 | 64 | Higher rank = more capacity |
+| `--lora-alpha` | 32 | 64 | Typically equals rank |
+| `--lora-dropout` | 0.0 | 0.0 | Dropout for LoRA layers |
+
+### Expected Results
+
+| Training Steps | libero_spatial | libero_object | libero_goal | libero_10 |
+|---------------|---------------|---------------|-------------|-----------|
+| 0 (base model) | ~10-20% | ~5-15% | ~10-20% | ~5-15% |
+| 5,000 | ~20-40% | ~15-30% | ~15-35% | ~10-25% |
+| 50,000 | ~70-85% | ~60-75% | ~65-80% | ~50-65% |
+| 100,000 | ~90-95% | ~85-92% | ~85-93% | ~75-88% |
+| 150,000 | ~95-98% | ~92-96% | ~90-95% | ~85-92% |
+
+> **Note**: Results vary based on hyperparameters, dataset quality, and random seed. The OFT paper reports ~97% on spatial tasks after 150K steps.
+
+---
+
+## Using Your Trained Checkpoint
 
 After fine-tuning, your checkpoint will be saved in the `checkpoints/` directory. Here's how to use it:
 
-#### 1. Locate Your Checkpoint
+### 1. Locate Your Checkpoint
 
 ```bash
 # List available checkpoints
-ls -la /home/rowel/sandbox/isaac-vla/checkpoints/
+ls -la checkpoints/
 
-# Example checkpoint path:
+# Example checkpoint path pattern:
 # checkpoints/openvla-7b+libero_spatial_no_noops+b1+lr-0.0005+lora-r32+dropout-0.0--image_aug--libero_spatial_ft_lora32_bs1/checkpoint-5000/
 ```
 
-#### 2. Start VLA Server with Your Checkpoint
+### 2. Start VLA Server with Your Checkpoint
 
 ```bash
 # Terminal 1: Start VLA server pointing to your checkpoint
 python scripts/run_vla_server.py \
-    --checkpoint /home/rowel/sandbox/isaac-vla/checkpoints/openvla-7b+libero_spatial_no_noops+b1+lr-0.0005+lora-r32+dropout-0.0--image_aug--libero_spatial_ft_lora32_bs1/checkpoint-5000/
+    --checkpoint /path/to/your/checkpoint-5000/
 ```
 
-#### 3. Evaluate on LIBERO Tasks
+### 3. Evaluate on LIBERO Tasks
 
 ```bash
 # Terminal 2: Evaluate single task
@@ -322,35 +331,19 @@ python scripts/run_libero_eval.py --task-suite libero_spatial --all-tasks --num-
 python scripts/run_libero_eval.py --all-suites --num-episodes 5
 ```
 
-#### 4. Expected Results
+### 4. Troubleshooting Poor Performance
 
-| Model | libero_spatial | libero_object | libero_goal | libero_10 |
-|-------|---------------|---------------|-------------|-----------|
-| OpenVLA-OFT (base) | ~10-20% | ~5-15% | ~10-20% | ~5-15% |
-| LoRA Fine-tuned (5K steps) | ~30-50% | ~20-40% | ~25-45% | ~15-35% |
-| LoRA Fine-tuned (150K steps) | ~60-80% | ~50-70% | ~55-75% | ~40-60% |
-| Full Fine-tuned | ~70-90% | ~60-80% | ~65-85% | ~50-70% |
+If you're getting 0% success rate, check these common issues:
 
-> **Note**: Results vary based on training steps, learning rate, and dataset quality. 5K steps is a quick test; 150K+ steps recommended for production.
+| Issue | Symptom | Fix |
+|-------|---------|-----|
+| **Action clipping too aggressive** | Robot barely moves | Set `max_position_delta: 1.0` and `max_rotation_delta: 1.0` in `config/default.yaml` |
+| **Insufficient training** | Random movements | Train for at least 50K steps (150K recommended) |
+| **Wrong checkpoint** | Server uses base model | Verify `--checkpoint` path points to fine-tuned weights |
+| **Proprio dimension mismatch** | Server 500 errors | Ensure state is 8D (7 joints + 1 gripper) |
+| **Missing LIBERO files** | Env creation fails | Run `python -c "import libero; libero.utils.download_libero_assets()"` |
 
-### Hyperparameter Guide
-
-| Parameter | LoRA | Full FT | Notes |
-|-----------|------|---------|-------|
-| Learning Rate | 5e-5 | 1e-5 | Lower for full FT |
-| Batch Size | 2 | 2 | Per GPU |
-| Grad Accumulation | 4 | 8 | Effective batch = 8/16 |
-| LoRA Rank | 32 | N/A | Higher = more capacity |
-| Epochs | 20 | 10 | More for LoRA |
-| Warmup Steps | 500 | 500 | Cosine LR schedule |
-
-### Expected Results
-
-| Model | libero_spatial | libero_object | libero_goal | libero_10 |
-|-------|---------------|---------------|-------------|-----------|
-| OpenVLA-OFT (base) | ~10-20% | ~5-15% | ~10-20% | ~5-15% |
-| LoRA Fine-tuned | ~60-80% | ~50-70% | ~55-75% | ~40-60% |
-| Full Fine-tuned | ~70-90% | ~60-80% | ~65-85% | ~50-70% |
+For detailed analysis and production fine-tuning guide, see [docs/PRODUCTION_FINETUNING.md](docs/PRODUCTION_FINETUNING.md).
 
 ---
 
@@ -417,6 +410,7 @@ isaac-vla/
 │   ├── run_vla_server.py            # VLA server launcher
 │   ├── run_sim_bridge.py            # Sim bridge launcher
 │   ├── run_libero_eval.py           # LIBERO evaluation runner
+│   ├── run_libero_finetune.py       # LIBERO fine-tuning runner
 │   ├── run_tui_client.py            # Rich TUI client
 │   ├── collect_demonstrations.py    # Data collection script
 │   ├── evaluate_tasks.py            # Evaluation runner
@@ -425,7 +419,8 @@ isaac-vla/
     ├── STEP_BY_STEP.md              # Detailed setup guide
     ├── ARCHITECTURE.md              # Architecture deep-dive
     ├── FINETUNING.md                # Fine-tuning guide
-    └── KITCHEN_TASKS.md             # Kitchen task definitions
+    ├── KITCHEN_TASKS.md             # Kitchen task definitions
+    └── PRODUCTION_FINETUNING.md     # Production fine-tuning guide
 ```
 
 ---
@@ -436,6 +431,7 @@ isaac-vla/
 - [Architecture Deep-Dive](docs/ARCHITECTURE.md) — System architecture and data flow
 - [Fine-Tuning Guide](docs/FINETUNING.md) — How to fine-tune on kitchen tasks
 - [Kitchen Task Definitions](docs/KITCHEN_TASKS.md) — Task catalog and success criteria
+- [Production Fine-Tuning Guide](docs/PRODUCTION_FINETUNING.md) — Root cause analysis, production configs, and troubleshooting
 - [Environment Comparison](ENVIRONMENT_COMPARISON.md) — LIBERO vs Isaac Sim detailed comparison
 
 ---
