@@ -425,6 +425,76 @@ isaac-vla/
 
 ---
 
+## Development with OnIt Agent
+
+The **OnIt agent** is an autonomous development assistant that can manage isaac-vla development tasks, run experiments, and automate workflows.
+
+### Quick Start
+
+```bash
+# Launch OnIt agent with thinking mode and unrestricted access
+onit --think --unrestricted --target-env vla-oft
+
+# The agent will:
+# - Activate the vla-oft conda environment
+# - Clone/update the isaac-vla repository
+# - Execute development tasks autonomously
+# - Commit and push changes to the repository
+```
+
+### Agent Capabilities
+
+| Capability | Description |
+|------------|-------------|
+| **Code Development** | Write, modify, and debug Python code |
+| **Experiment Management** | Run fine-tuning, evaluation, and data collection |
+| **Documentation** | Generate and update documentation |
+| **Git Management** | Commit, push, and manage branches |
+| **File System** | Read, write, and organize project files |
+| **Web Research** | Search for documentation and solutions |
+| **Process Management** | Start/stop servers and background processes |
+
+### Example Agent Commands
+
+```bash
+# Ask the agent to implement a feature
+onit --think --unrestricted --target-env vla-oft "implement LIBERO evaluation pipeline"
+
+# Ask the agent to debug an issue
+onit --think --unrestricted --target-env vla-oft "fix the 0% success rate in LIBERO evaluation"
+
+# Ask the agent to update documentation
+onit --think --unrestricted --target-env vla-oft "update README with fine-tuning guide"
+
+# Ask the agent to run experiments
+onit --think --unrestricted --target-env vla-oft "fine-tune OpenVLA-OFT on libero_spatial for 150K steps"
+```
+
+### Agent Workflow
+
+```
+User Request → OnIt Agent → Execute Tools → Modify Code → Test → Commit → Push
+     ↑                                                                              ↓
+     └──────────────────────────────────────────────────────────────────────────────┘
+```
+
+The agent operates in the `vla-oft` conda environment and has full access to:
+- File system operations (read, write, edit)
+- Shell command execution
+- Git operations (commit, push, branch management)
+- Web search and documentation lookup
+- Process management (start/stop servers)
+
+### Best Practices
+
+1. **Be specific**: Provide clear, detailed instructions for complex tasks
+2. **Review changes**: The agent commits and pushes automatically — review the git history
+3. **Use `--think`**: Enables deeper reasoning for complex development tasks
+4. **Use `--unrestricted`**: Allows full tool access for comprehensive development
+5. **Specify `--target-env`**: Ensures the agent uses the correct conda environment
+
+---
+
 ## Documentation
 
 - [Step-by-Step Setup Guide](docs/STEP_BY_STEP.md) — Complete installation and setup instructions
