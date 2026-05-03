@@ -66,6 +66,8 @@ def main():
     parser.add_argument("--batch-size", type=int, default=BATCH_SIZE, help="Batch size per GPU")
     parser.add_argument("--max-steps", type=int, default=MAX_STEPS, help="Max training steps")
     parser.add_argument("--lr", type=float, default=LEARNING_RATE, help="Learning rate")
+    parser.add_argument("--save-freq", type=int, default=SAVE_FREQ, help="Checkpoint save frequency (steps)")
+    parser.add_argument("--lora-rank", type=int, default=LORA_RANK, help="LoRA adapter rank")
     parser.add_argument("--offline", action="store_true", help="Run in offline mode (use cached model only)")
     parser.add_argument("--port", type=int, default=29501, help="Master port for distributed training (default: 29501)")
     args = parser.parse_args()
@@ -91,10 +93,10 @@ def main():
         "--learning_rate", str(args.lr),
         "--num_steps_before_decay", str(NUM_STEPS_BEFORE_DECAY),
         "--max_steps", str(args.max_steps),
-        "--save_freq", str(SAVE_FREQ),
+        "--save_freq", str(args.save_freq),
         "--save_latest_checkpoint_only", "False",
         "--image_aug", "True" if IMAGE_AUG else "False",
-        "--lora_rank", str(LORA_RANK),
+        "--lora_rank", str(args.lora_rank),
         "--wandb_entity", "your-wandb-entity",
         "--wandb_project", "isaac-vla-libero",
         "--run_id_note", f"{args.suite}_ft_lora32_bs{args.batch_size}",
@@ -111,7 +113,8 @@ def main():
     print(f"Batch size: {args.batch_size}")
     print(f"Max steps: {args.max_steps}")
     print(f"Learning rate: {args.lr}")
-    print(f"LoRA rank: {LORA_RANK}")
+    print(f"Save frequency: {args.save_freq}")
+    print(f"LoRA rank: {args.lora_rank}")
     print(f"Offline mode: {args.offline}")
     print("=" * 80)
     print(f"Command: {' '.join(cmd)}")

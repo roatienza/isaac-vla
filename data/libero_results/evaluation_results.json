@@ -1,83 +1,820 @@
 {
   "libero_spatial": {
     "task_suite": "libero_spatial",
-    "task_id": 0,
-    "task_name": "pick up the black bowl between the plate and the ramekin and place it on the plate",
-    "num_episodes": 10,
-    "success_count": 0,
-    "success_rate": 0.0,
-    "avg_episode_length": 10.0,
-    "episodes": [
+    "tasks": [
       {
-        "success": false,
-        "steps": 10,
-        "instruction": "pick up the black bowl between the plate and the ramekin and place it on the plate",
+        "task_suite": "libero_spatial",
         "task_id": 0,
-        "task_suite": "libero_spatial"
+        "task_name": "pick up the black bowl between the plate and the ramekin and place it on the plate",
+        "num_episodes": 10,
+        "success_count": 0,
+        "success_rate": 0.0,
+        "avg_episode_length": 230.0,
+        "episodes": [
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl between the plate and the ramekin and place it on the plate",
+            "task_id": 0,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl between the plate and the ramekin and place it on the plate",
+            "task_id": 0,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl between the plate and the ramekin and place it on the plate",
+            "task_id": 0,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl between the plate and the ramekin and place it on the plate",
+            "task_id": 0,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl between the plate and the ramekin and place it on the plate",
+            "task_id": 0,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl between the plate and the ramekin and place it on the plate",
+            "task_id": 0,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl between the plate and the ramekin and place it on the plate",
+            "task_id": 0,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl between the plate and the ramekin and place it on the plate",
+            "task_id": 0,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl between the plate and the ramekin and place it on the plate",
+            "task_id": 0,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl between the plate and the ramekin and place it on the plate",
+            "task_id": 0,
+            "task_suite": "libero_spatial"
+          }
+        ]
       },
       {
-        "success": false,
-        "steps": 10,
-        "instruction": "pick up the black bowl between the plate and the ramekin and place it on the plate",
-        "task_id": 0,
-        "task_suite": "libero_spatial"
+        "task_suite": "libero_spatial",
+        "task_id": 1,
+        "task_name": "pick up the black bowl next to the ramekin and place it on the plate",
+        "num_episodes": 10,
+        "success_count": 0,
+        "success_rate": 0.0,
+        "avg_episode_length": 230.0,
+        "episodes": [
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the ramekin and place it on the plate",
+            "task_id": 1,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the ramekin and place it on the plate",
+            "task_id": 1,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the ramekin and place it on the plate",
+            "task_id": 1,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the ramekin and place it on the plate",
+            "task_id": 1,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the ramekin and place it on the plate",
+            "task_id": 1,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the ramekin and place it on the plate",
+            "task_id": 1,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the ramekin and place it on the plate",
+            "task_id": 1,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the ramekin and place it on the plate",
+            "task_id": 1,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the ramekin and place it on the plate",
+            "task_id": 1,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the ramekin and place it on the plate",
+            "task_id": 1,
+            "task_suite": "libero_spatial"
+          }
+        ]
       },
       {
-        "success": false,
-        "steps": 10,
-        "instruction": "pick up the black bowl between the plate and the ramekin and place it on the plate",
-        "task_id": 0,
-        "task_suite": "libero_spatial"
+        "task_suite": "libero_spatial",
+        "task_id": 2,
+        "task_name": "pick up the black bowl from table center and place it on the plate",
+        "num_episodes": 10,
+        "success_count": 0,
+        "success_rate": 0.0,
+        "avg_episode_length": 230.0,
+        "episodes": [
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl from table center and place it on the plate",
+            "task_id": 2,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl from table center and place it on the plate",
+            "task_id": 2,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl from table center and place it on the plate",
+            "task_id": 2,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl from table center and place it on the plate",
+            "task_id": 2,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl from table center and place it on the plate",
+            "task_id": 2,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl from table center and place it on the plate",
+            "task_id": 2,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl from table center and place it on the plate",
+            "task_id": 2,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl from table center and place it on the plate",
+            "task_id": 2,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl from table center and place it on the plate",
+            "task_id": 2,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl from table center and place it on the plate",
+            "task_id": 2,
+            "task_suite": "libero_spatial"
+          }
+        ]
       },
       {
-        "success": false,
-        "steps": 10,
-        "instruction": "pick up the black bowl between the plate and the ramekin and place it on the plate",
-        "task_id": 0,
-        "task_suite": "libero_spatial"
+        "task_suite": "libero_spatial",
+        "task_id": 3,
+        "task_name": "pick up the black bowl on the cookie box and place it on the plate",
+        "num_episodes": 10,
+        "success_count": 0,
+        "success_rate": 0.0,
+        "avg_episode_length": 230.0,
+        "episodes": [
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the cookie box and place it on the plate",
+            "task_id": 3,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the cookie box and place it on the plate",
+            "task_id": 3,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the cookie box and place it on the plate",
+            "task_id": 3,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the cookie box and place it on the plate",
+            "task_id": 3,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the cookie box and place it on the plate",
+            "task_id": 3,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the cookie box and place it on the plate",
+            "task_id": 3,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the cookie box and place it on the plate",
+            "task_id": 3,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the cookie box and place it on the plate",
+            "task_id": 3,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the cookie box and place it on the plate",
+            "task_id": 3,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the cookie box and place it on the plate",
+            "task_id": 3,
+            "task_suite": "libero_spatial"
+          }
+        ]
       },
       {
-        "success": false,
-        "steps": 10,
-        "instruction": "pick up the black bowl between the plate and the ramekin and place it on the plate",
-        "task_id": 0,
-        "task_suite": "libero_spatial"
+        "task_suite": "libero_spatial",
+        "task_id": 4,
+        "task_name": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
+        "num_episodes": 10,
+        "success_count": 0,
+        "success_rate": 0.0,
+        "avg_episode_length": 230.0,
+        "episodes": [
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
+            "task_id": 4,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
+            "task_id": 4,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
+            "task_id": 4,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
+            "task_id": 4,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
+            "task_id": 4,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
+            "task_id": 4,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
+            "task_id": 4,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
+            "task_id": 4,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
+            "task_id": 4,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate",
+            "task_id": 4,
+            "task_suite": "libero_spatial"
+          }
+        ]
       },
       {
-        "success": false,
-        "steps": 10,
-        "instruction": "pick up the black bowl between the plate and the ramekin and place it on the plate",
-        "task_id": 0,
-        "task_suite": "libero_spatial"
+        "task_suite": "libero_spatial",
+        "task_id": 5,
+        "task_name": "pick up the black bowl on the ramekin and place it on the plate",
+        "num_episodes": 10,
+        "success_count": 0,
+        "success_rate": 0.0,
+        "avg_episode_length": 230.0,
+        "episodes": [
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the ramekin and place it on the plate",
+            "task_id": 5,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the ramekin and place it on the plate",
+            "task_id": 5,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the ramekin and place it on the plate",
+            "task_id": 5,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the ramekin and place it on the plate",
+            "task_id": 5,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the ramekin and place it on the plate",
+            "task_id": 5,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the ramekin and place it on the plate",
+            "task_id": 5,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the ramekin and place it on the plate",
+            "task_id": 5,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the ramekin and place it on the plate",
+            "task_id": 5,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the ramekin and place it on the plate",
+            "task_id": 5,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the ramekin and place it on the plate",
+            "task_id": 5,
+            "task_suite": "libero_spatial"
+          }
+        ]
       },
       {
-        "success": false,
-        "steps": 10,
-        "instruction": "pick up the black bowl between the plate and the ramekin and place it on the plate",
-        "task_id": 0,
-        "task_suite": "libero_spatial"
+        "task_suite": "libero_spatial",
+        "task_id": 6,
+        "task_name": "pick up the black bowl next to the cookie box and place it on the plate",
+        "num_episodes": 10,
+        "success_count": 0,
+        "success_rate": 0.0,
+        "avg_episode_length": 230.0,
+        "episodes": [
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the cookie box and place it on the plate",
+            "task_id": 6,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the cookie box and place it on the plate",
+            "task_id": 6,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the cookie box and place it on the plate",
+            "task_id": 6,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the cookie box and place it on the plate",
+            "task_id": 6,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the cookie box and place it on the plate",
+            "task_id": 6,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the cookie box and place it on the plate",
+            "task_id": 6,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the cookie box and place it on the plate",
+            "task_id": 6,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the cookie box and place it on the plate",
+            "task_id": 6,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the cookie box and place it on the plate",
+            "task_id": 6,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the cookie box and place it on the plate",
+            "task_id": 6,
+            "task_suite": "libero_spatial"
+          }
+        ]
       },
       {
-        "success": false,
-        "steps": 10,
-        "instruction": "pick up the black bowl between the plate and the ramekin and place it on the plate",
-        "task_id": 0,
-        "task_suite": "libero_spatial"
+        "task_suite": "libero_spatial",
+        "task_id": 7,
+        "task_name": "pick up the black bowl on the stove and place it on the plate",
+        "num_episodes": 10,
+        "success_count": 0,
+        "success_rate": 0.0,
+        "avg_episode_length": 230.0,
+        "episodes": [
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the stove and place it on the plate",
+            "task_id": 7,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the stove and place it on the plate",
+            "task_id": 7,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the stove and place it on the plate",
+            "task_id": 7,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the stove and place it on the plate",
+            "task_id": 7,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the stove and place it on the plate",
+            "task_id": 7,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the stove and place it on the plate",
+            "task_id": 7,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the stove and place it on the plate",
+            "task_id": 7,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the stove and place it on the plate",
+            "task_id": 7,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the stove and place it on the plate",
+            "task_id": 7,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the stove and place it on the plate",
+            "task_id": 7,
+            "task_suite": "libero_spatial"
+          }
+        ]
       },
       {
-        "success": false,
-        "steps": 10,
-        "instruction": "pick up the black bowl between the plate and the ramekin and place it on the plate",
-        "task_id": 0,
-        "task_suite": "libero_spatial"
+        "task_suite": "libero_spatial",
+        "task_id": 8,
+        "task_name": "pick up the black bowl next to the plate and place it on the plate",
+        "num_episodes": 10,
+        "success_count": 0,
+        "success_rate": 0.0,
+        "avg_episode_length": 230.0,
+        "episodes": [
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the plate and place it on the plate",
+            "task_id": 8,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the plate and place it on the plate",
+            "task_id": 8,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the plate and place it on the plate",
+            "task_id": 8,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the plate and place it on the plate",
+            "task_id": 8,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the plate and place it on the plate",
+            "task_id": 8,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the plate and place it on the plate",
+            "task_id": 8,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the plate and place it on the plate",
+            "task_id": 8,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the plate and place it on the plate",
+            "task_id": 8,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the plate and place it on the plate",
+            "task_id": 8,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl next to the plate and place it on the plate",
+            "task_id": 8,
+            "task_suite": "libero_spatial"
+          }
+        ]
       },
       {
-        "success": false,
-        "steps": 10,
-        "instruction": "pick up the black bowl between the plate and the ramekin and place it on the plate",
-        "task_id": 0,
-        "task_suite": "libero_spatial"
+        "task_suite": "libero_spatial",
+        "task_id": 9,
+        "task_name": "pick up the black bowl on the wooden cabinet and place it on the plate",
+        "num_episodes": 10,
+        "success_count": 0,
+        "success_rate": 0.0,
+        "avg_episode_length": 230.0,
+        "episodes": [
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the wooden cabinet and place it on the plate",
+            "task_id": 9,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the wooden cabinet and place it on the plate",
+            "task_id": 9,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the wooden cabinet and place it on the plate",
+            "task_id": 9,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the wooden cabinet and place it on the plate",
+            "task_id": 9,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the wooden cabinet and place it on the plate",
+            "task_id": 9,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the wooden cabinet and place it on the plate",
+            "task_id": 9,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the wooden cabinet and place it on the plate",
+            "task_id": 9,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the wooden cabinet and place it on the plate",
+            "task_id": 9,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the wooden cabinet and place it on the plate",
+            "task_id": 9,
+            "task_suite": "libero_spatial"
+          },
+          {
+            "success": false,
+            "steps": 230,
+            "instruction": "pick up the black bowl on the wooden cabinet and place it on the plate",
+            "task_id": 9,
+            "task_suite": "libero_spatial"
+          }
+        ]
       }
-    ]
+    ],
+    "overall_success_rate": 0.0,
+    "total_episodes": 100,
+    "total_successes": 0
   }
 }
