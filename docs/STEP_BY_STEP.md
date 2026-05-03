@@ -68,7 +68,7 @@ python -c "from experiments.robot.openvla_utils import get_vla; print('OpenVLA-O
 
 ```bash
 # In the same vla-oft environment:
-cd /path/to/isaac-vla
+cd /home/rowel/sandbox/isaac-vla
 pip install -r requirements.txt
 
 # Verify key packages
@@ -188,7 +188,7 @@ python scripts/run_vla_server.py --config config/default.yaml
 # Terminal 2: Sim Bridge (opens Isaac Sim window)
 ISAAC_SIM_PATH=~/.local/share/ov/pkg/isaac-sim-*
 # IMPORTANT: Use ABSOLUTE path to script, since python.sh changes the working directory
-$ISAAC_SIM_PATH/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py \
+$ISAAC_SIM_PATH/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py \
     --config config/default.yaml
 
 # When the window opens, type at the prompt:
@@ -202,11 +202,11 @@ $ISAAC_SIM_PATH/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py \
 
 ```bash
 # Run one task and watch the robot complete it:
-$ISAAC_SIM_PATH/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py \
+$ISAAC_SIM_PATH/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py \
     --task "pick up the red block"
 
 # Or use a named task from kitchen_tasks.yaml:
-$ISAAC_SIM_PATH/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py \
+$ISAAC_SIM_PATH/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py \
     --task-name pick_red_block
 ```
 
@@ -216,23 +216,23 @@ If you're running headless or want to save a recording:
 
 ```bash
 # Save video (MP4) of the episode:
-$ISAAC_SIM_PATH/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py \
+$ISAAC_SIM_PATH/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py \
     --task "pick up the red block" --save-video
 
 # Headless mode with video recording (for remote servers):
-$ISAAC_SIM_PATH/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py \
+$ISAAC_SIM_PATH/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py \
     --headless --task "pick up the red block" --save-video
 
 # Custom video output directory:
-$ISAAC_SIM_PATH/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py \
-    --task "pick up the red block" --save-video --video-dir /tmp/my_videos
+$ISAAC_SIM_PATH/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py \
+    --task "pick up the red block" --save-video --video-dir /home/rowel/sandbox/isaac-vla/data/evaluation_videos
 ```
 
 ### Option D: Embedded Mode (Single Machine, No HTTP)
 
 ```bash
 # Everything in one process (VLA model loaded directly)
-$ISAAC_SIM_PATH/python.sh /abs/path/to/isaac-vla/scripts/quick_start.py \
+$ISAAC_SIM_PATH/python.sh /home/rowel/sandbox/isaac-vla/scripts/quick_start.py \
     --instruction "pick up the red block" \
     --config config/default.yaml
 ```
@@ -247,7 +247,7 @@ python scripts/run_vla_server.py --config config/default.yaml
 # Terminal 2: Isaac Sim Bridge (on sim machine)
 ISAAC_SIM_PATH=~/.local/share/ov/pkg/isaac-sim-*
 # IMPORTANT: Use ABSOLUTE path to script, since python.sh changes the working directory
-$ISAAC_SIM_PATH/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py \
+$ISAAC_SIM_PATH/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py \
     --vla-url http://localhost:8777 \
     --config config/default.yaml
 
@@ -281,7 +281,7 @@ cd ~/isaacsim
 
 ```bash
 # IMPORTANT: Use ABSOLUTE path to script, since python.sh changes the working directory
-ISAAC_SIM_PATH/python.sh /abs/path/to/isaac-vla/scripts/collect_demonstrations.py \
+ISAAC_SIM_PATH/python.sh /home/rowel/sandbox/isaac-vla/scripts/collect_demonstrations.py \
     --task "pick up the red block" \
     --num-episodes 50 \
     --output-dir ./data/demonstrations
@@ -306,7 +306,7 @@ cd openvla-oft
 # LoRA fine-tuning (recommended, fits on single GPU)
 python scripts/finetune.py \
     --pretrained_checkpoint moojink/openvla-7b-oft-finetuned-libero-spatial \
-    --dataset_dir /path/to/isaac-vla/data/demonstrations \
+    --dataset_dir /home/rowel/sandbox/isaac-vla/data/demonstrations \
     --run_output_dir ./checkpoints/franka-kitchen-lora \
     --use_l1_regression=True \
     --num_images_in_input=2 \
@@ -354,7 +354,7 @@ $ISAAC_SIM_PATH/python.sh -c "import isaacsim; print(isaacsim.__version__)"
 
 # IMPORTANT: When running scripts with python.sh, use ABSOLUTE paths
 # WRONG: ~/isaacsim/python.sh scripts/run_sim_bridge.py
-# CORRECT: ~/isaacsim/python.sh /home/user/isaac-vla/scripts/run_sim_bridge.py
+# CORRECT: ~/isaacsim/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py
 ```
 
 ### Camera Issues
@@ -400,7 +400,7 @@ it's because Isaac Sim's `python.sh` changes the working directory. Use **absolu
 ~/isaacsim/python.sh scripts/run_sim_bridge.py
 
 # CORRECT:
-~/isaacsim/python.sh /path/to/isaac-vla/scripts/run_sim_bridge.py
+~/isaacsim/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py
 ```
 
 All isaac-vla scripts automatically detect their location and set the working directory
@@ -497,16 +497,16 @@ To record an MP4 video of the robot executing a task:
 
 ```bash
 # With GUI (you can also watch live):
-~/isaacsim/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py \
+~/isaacsim/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py \
     --task "pick up the red block" --save-video
 
 # Headless (no GUI, for remote servers):
-~/isaacsim/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py \
+~/isaacsim/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py \
     --headless --task "pick up the red block" --save-video
 
 # Custom output directory:
-~/isaacsim/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py \
-    --task "pick up the red block" --save-video --video-dir /tmp/videos
+~/isaacsim/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py \
+    --task "pick up the red block" --save-video --video-dir /home/rowel/sandbox/isaac-vla/data/evaluation_videos
 ```
 
 Videos are saved as `episode_YYYYMMDD_HHMMSS.mp4` in the output directory.

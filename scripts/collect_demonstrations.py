@@ -11,7 +11,7 @@ Franka kitchen environment. Supports:
 - RLDS format output for OpenVLA-OFT fine-tuning
 
 Usage:
-    <isaac_sim_install>/python.sh /abs/path/to/isaac-vla/scripts/collect_demonstrations.py \
+    <isaac_sim_install>/python.sh /home/rowel/sandbox/isaac-vla/scripts/collect_demonstrations.py \
         --task "pick up the red block" \
         --num-episodes 10 \
         --output-dir ./data/demonstrations

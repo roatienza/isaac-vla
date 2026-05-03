@@ -19,7 +19,7 @@ Use the built-in teleoperation interface to collect demonstrations:
 
 ```bash
 # IMPORTANT: Use ABSOLUTE path to script, since python.sh changes the working directory
-<isaac_sim>/python.sh /abs/path/to/isaac-vla/scripts/collect_demonstrations.py \
+<isaac_sim>/python.sh /home/rowel/sandbox/isaac-vla/scripts/collect_demonstrations.py \
     --task "pick up the red block" \
     --num-episodes 50 \
     --output-dir ./data/demonstrations
@@ -147,7 +147,7 @@ cd openvla-oft
 # LoRA fine-tuning
 python -m prismatic.vla.train \
     --pretrained_checkpoint moojink/openvla-7b-oft-finetuned-libero-spatial \
-    --dataset_dir /path/to/isaac-vla/data/demonstrations \
+    --dataset_dir /home/rowel/sandbox/isaac-vla/data/demonstrations \
     --run_output_dir ./checkpoints/franka-kitchen-lora \
     --use_l1_regression True \
     --use_diffusion False \
@@ -177,7 +177,7 @@ careful learning rate selection.
 # Full fine-tuning (requires gradient accumulation)
 python -m prismatic.vla.train \
     --pretrained_checkpoint moojink/openvla-7b-oft-finetuned-libero-spatial \
-    --dataset_dir /path/to/isaac-vla/data/demonstrations \
+    --dataset_dir /home/rowel/sandbox/isaac-vla/data/demonstrations \
     --run_output_dir ./checkpoints/franka-kitchen-full \
     --use_l1_regression True \
     --num_images_in_input 2 \

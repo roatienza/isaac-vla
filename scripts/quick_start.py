@@ -11,14 +11,14 @@ A minimal example showing how to:
 This is the simplest way to get started with isaac-vla.
 
 Usage (embedded mode — single GPU):
-    <isaac_sim>/python.sh /abs/path/to/isaac-vla/scripts/quick_start.py --instruction "pick up the red block"
+    <isaac_sim>/python.sh /home/rowel/sandbox/isaac-vla/scripts/quick_start.py --instruction "pick up the red block"
 
 Usage (remote mode — VLA server on separate machine):
     # Terminal 1: Start VLA server
     python scripts/run_vla_server.py --port 8777
 
     # Terminal 2: Start sim bridge (with Isaac Sim Python)
-    <isaac_sim>/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py --vla-url http://localhost:8777
+    <isaac_sim>/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py --vla-url http://localhost:8777
 
     # Terminal 3: Run quick start
     python scripts/quick_start.py --instruction "pick up the red block" --remote
@@ -123,7 +123,7 @@ def run_remote(instruction: str, vla_url: str, bridge_url: str, max_steps: int =
     except Exception as e:
         logger.error(f"✗ Cannot connect to sim bridge: {e}")
         logger.error("Make sure the sim bridge is running:")
-        logger.error(f"  <isaac_sim>/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py --vla-url {vla_url}")
+        logger.error(f"  <isaac_sim>/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py --vla-url {vla_url}")
         return
 
     # Run task

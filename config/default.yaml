@@ -140,6 +140,9 @@ libero:
   camera_widths: 256
   center_crop: true             # Center crop to 224x224 (OpenVLA-OFT preprocessing)
   target_size: [224, 224]       # Final image size after preprocessing
+  num_steps_wait: 10            # Steps to wait for objects to stabilize (matches reference impl)
+  max_position_delta: 0.05      # Max position delta for safety clipping
+  max_rotation_delta: 0.1       # Max rotation delta for safety clipping
 
 # Data Collection Configuration
 data_collection:

@@ -9,7 +9,7 @@ Usage:
     python scripts/run_vla_server.py --config config/default.yaml
     python scripts/run_vla_server.py --checkpoint moojink/openvla-7b-oft-finetuned-libero-spatial
     python scripts/run_vla_server.py --port 8777 --no-warmup
-    python scripts/run_vla_server.py --openvla-oft-root /path/to/openvla-oft
+    python scripts/run_vla_server.py --openvla-oft-root /home/rowel/sandbox/openvla-oft
 """
 
 import argparse

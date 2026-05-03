@@ -8,29 +8,29 @@ to the Franka robot in the kitchen environment.
 
 Usage:
     # With GUI visualization (default):
-    <isaac_sim>/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py --config config/default.yaml
+    <isaac_sim>/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py --config config/default.yaml
 
     # Headless (no GUI):
-    <isaac_sim>/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py --headless
+    <isaac_sim>/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py --headless
 
     # Run a specific task and watch the robot:
-    <isaac_sim>/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py --task "pick up the red block"
+    <isaac_sim>/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py --task "pick up the red block"
 
     # With VLA server on a separate machine:
-    <isaac_sim>/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py --vla-url http://192.168.1.100:8777
+    <isaac_sim>/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py --vla-url http://192.168.1.100:8777
 
     # Save video of the episode:
-    <isaac_sim>/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py --task "pick up the red block" --save-video
+    <isaac_sim>/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py --task "pick up the red block" --save-video
 
     # Interactive mode with command prompt:
-    <isaac_sim>/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py --interactive
+    <isaac_sim>/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py --interactive
 
 NOTE: This script must be run with Isaac Sim's Python interpreter.
       Use an ABSOLUTE path to this script, since Isaac Sim's python.sh
       changes the working directory:
 
     # CORRECT (absolute path):
-    ~/isaacsim/python.sh /home/user/isaac-vla/scripts/run_sim_bridge.py
+    ~/isaacsim/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py
 
     # WRONG (relative path from a different directory):
     ~/isaacsim/python.sh scripts/run_sim_bridge.py

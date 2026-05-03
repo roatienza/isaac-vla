@@ -1,8 +1,19 @@
 """
 LIBERO Evaluation Script
-=========================
+========================
 
 Run OpenVLA-OFT evaluation on LIBERO MuJoCo environments.
+
+This script implements the same evaluation pipeline as the reference
+OpenVLA-OFT implementation:
+https://github.com/roatienza/openvla-oft/experiments/robot/libero/run_libero_eval.py
+
+Key features:
+- Supports all LIBERO task suites (spatial, object, goal, 10, 90)
+- Configurable number of episodes per task
+- Video recording of rollouts
+- Results saved as JSON with per-task and overall metrics
+- HTTP mode (via VLA server) or embedded mode (direct model loading)
 
 Usage:
     # Evaluate on a single task
@@ -41,7 +52,7 @@ from typing import Any, Dict, List
 
 import numpy as np
 
-from src.libero_bridge import LIBEROBridge
+from src.libero_bridge import LIBEROBridge, TASK_MAX_STEPS
 from src.utils import load_config, setup_logging
 
 logger = logging.getLogger(__name__)
@@ -78,6 +89,7 @@ def run_single_task_evaluation(
         "camera_widths": 256,
         "center_crop": True,
         "target_size": [224, 224],
+        "num_steps_wait": 10,
     }
 
     # Save temporary config
@@ -143,9 +155,9 @@ def run_suite_evaluation(
     total_successes = 0
 
     for task_id in range(num_tasks):
-        logger.info(f"=" * 60)
+        logger.info("=" * 60)
         logger.info(f"Evaluating task {task_id}/{num_tasks} in {task_suite}")
-        logger.info(f"=" * 60)
+        logger.info("=" * 60)
 
         try:
             task_result = run_single_task_evaluation(
@@ -217,8 +229,8 @@ def main():
     parser.add_argument(
         "--max-steps",
         type=int,
-        default=500,
-        help="Maximum steps per episode (default: 500)",
+        default=None,
+        help="Maximum steps per episode (default: auto from TASK_MAX_STEPS)",
     )
 
     # VLA server settings
@@ -282,9 +294,9 @@ def main():
     all_results = {}
 
     for suite in suites:
-        logger.info(f"=" * 60)
+        logger.info("=" * 60)
         logger.info(f"Evaluating suite: {suite}")
-        logger.info(f"=" * 60)
+        logger.info("=" * 60)
 
         if args.all_tasks:
             suite_result = run_suite_evaluation(
@@ -314,11 +326,11 @@ def main():
     with open(results_path, "w") as f:
         json.dump(all_results, f, indent=2, default=str)
 
-    logger.info(f"=" * 60)
-    logger.info(f"Evaluation complete!")
+    logger.info("=" * 60)
+    logger.info("Evaluation complete!")
     logger.info(f"Total time: {elapsed_time:.1f}s")
     logger.info(f"Results saved to: {results_path}")
-    logger.info(f"=" * 60)
+    logger.info("=" * 60)
 
     # Print summary
     for suite, result in all_results.items():

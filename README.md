@@ -28,7 +28,7 @@ Isaac Sim provides a **3D viewport window** that shows the robot in the kitchen 
 If you're running on a remote server without a display, use `--headless`:
 
 ```bash
-<isaac_sim_install>/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py --headless --save-video
+<isaac_sim_install>/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py --headless --save-video
 ```
 
 You can still capture video with `--save-video` to review the robot's behavior later.
@@ -43,7 +43,7 @@ cd ~/isaacsim
 ./isaac-sim.streaming.sh
 
 # Or from Python:
-<isaac_sim_install>/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py --headless
+<isaac_sim_install>/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py --headless
 # (Add LIVESTREAM=1 environment variable to enable WebRTC)
 ```
 
@@ -117,7 +117,7 @@ pip install flash-attn --no-build-isolation
 ### 2. Install Isaac-VLA Dependencies
 
 ```bash
-cd /path/to/isaac-vla
+cd /home/rowel/sandbox/isaac-vla
 pip install -r requirements.txt
 ```
 
@@ -143,7 +143,7 @@ conda activate vla-oft
 python scripts/run_vla_server.py --config config/default.yaml
 
 # Terminal 2: Isaac Sim Bridge — opens the Isaac Sim window
-<isaac_sim_install>/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py --config config/default.yaml
+<isaac_sim_install>/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py --config config/default.yaml
 ```
 
 When the Isaac Sim window opens, you'll see the kitchen scene with the Franka robot. Type instructions at the `🤖 >` prompt and watch the robot respond:
@@ -159,10 +159,10 @@ Run a single task and watch the robot complete it:
 
 ```bash
 # With a free-form instruction:
-<isaac_sim_install>/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py --task "pick up the red block"
+<isaac_sim_install>/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py --task "pick up the red block"
 
 # With a named task from kitchen_tasks.yaml:
-<isaac_sim_install>/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py --task-name pick_red_block
+<isaac_sim_install>/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py --task-name pick_red_block
 ```
 
 #### Option C: Save Video of the Episode
@@ -171,15 +171,15 @@ If you're running headless or want to save a video:
 
 ```bash
 # Save video to data/evaluation_videos/
-<isaac_sim_install>/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py \
+<isaac_sim_install>/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py \
     --task "pick up the red block" --save-video
 
 # Custom video directory:
-<isaac_sim_install>/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py \
-    --task "pick up the red block" --save-video --video-dir /tmp/videos
+<isaac_sim_install>/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py \
+    --task "pick up the red block" --save-video --video-dir /home/rowel/sandbox/isaac-vla/data/evaluation_videos
 
 # Headless mode with video recording:
-<isaac_sim_install>/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py \
+<isaac_sim_install>/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py \
     --headless --task "pick up the red block" --save-video
 ```
 
@@ -187,7 +187,7 @@ If you're running headless or want to save a video:
 
 ```bash
 # Interactive mode with explicit flag:
-<isaac_sim_install>/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py --interactive
+<isaac_sim_install>/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py --interactive
 
 # Then type instructions, 'reset', 'status', or 'quit':
 🤖 Enter instruction (or 'quit'): pick up the red block
@@ -202,7 +202,7 @@ If you're running headless or want to save a video:
 python scripts/run_vla_server.py --config config/default.yaml
 
 # Terminal 2: Sim Bridge
-<isaac_sim_install>/python.sh /abs/path/to/isaac-vla/scripts/run_sim_bridge.py --config config/default.yaml
+<isaac_sim_install>/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py --config config/default.yaml
 
 # Terminal 3: Rich TUI Client (text-based control panel)
 python scripts/run_tui_client.py
@@ -212,7 +212,7 @@ python scripts/run_tui_client.py
 
 ```bash
 # Everything in one process (VLA model loaded directly, no HTTP)
-<isaac_sim_install>/python.sh /abs/path/to/isaac-vla/scripts/quick_start.py --instruction "pick up the red block"
+<isaac_sim_install>/python.sh /home/rowel/sandbox/isaac-vla/scripts/quick_start.py --instruction "pick up the red block"
 ```
 
 #### Option G: Python API
@@ -231,7 +231,7 @@ print(result)
 >
 > ```bash
 > # CORRECT:
-> ~/isaacsim/python.sh /path/to/isaac-vla/scripts/run_sim_bridge.py
+> ~/isaacsim/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py
 >
 > # WRONG:
 > ~/isaacsim/python.sh scripts/run_sim_bridge.py

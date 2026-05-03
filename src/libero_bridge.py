@@ -8,16 +8,16 @@ the Isaac Sim bridge, using the same VLA server but bypassing IK
 solving since LIBERO accepts delta EE actions directly.
 
 Architecture:
-    ┌─────────────────┐    HTTP     ┌─────────────────────┐
-    │  VLA Server     │◄───────────►│  LIBERO Bridge      │
-    │  (GPU:5090)     │  :8777/act  │  (MuJoCo)           │
-    └─────────────────┘             └─────────────────────┘
-                                             │
-                                        ┌────▼─────┐
-                                        │ LIBERO   │
-                                        │ MuJoCo   │
-                                        │ Env      │
-                                        └──────────┘
+    ┌───────────────┐    HTTP     ┌──────────────────┐
+    │  VLA Server   │◄───────────►│  LIBERO Bridge   │
+    │  (GPU:5090)   │  :8777/act  │  (MuJoCo)        │
+    └───────────────┘             └──────────────────┘
+                                     │
+                                ┌────┴────┐
+                                │ LIBERO  │
+                                │ MuJoCo  │
+                                │ Env     │
+                                └─────────┘
 
 Key differences from Isaac Sim:
 - Uses MuJoCo physics (same as LIBERO training)
@@ -25,12 +25,17 @@ Key differences from Isaac Sim:
 - No camera rendering overhead (MuJoCo is fast)
 - Direct access to LIBERO task suite and evaluation
 - Zero visual domain gap with OpenVLA-OFT training data
+
+This implementation matches the reference OpenVLA-OFT evaluation code:
+https://github.com/roatienza/openvla-oft/experiments/robot/libero/
 """
 
 import json
 import logging
 import os
+import sys
 import time
+from collections import deque
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -45,10 +50,18 @@ from src.utils import (
 
 logger = logging.getLogger(__name__)
 
+# ──── Task Suite Constants ─────────────────────────────────────────────────────
 
-# ─── Dataset Statistics ──────────────────────────────────────────────────────
+# Max steps per task suite (from reference implementation)
+TASK_MAX_STEPS = {
+    "libero_spatial": 220,   # longest training demo has 193 steps
+    "libero_object": 280,    # longest training demo has 254 steps
+    "libero_goal": 300,      # longest training demo has 270 steps
+    "libero_10": 520,        # longest training demo has 505 steps
+    "libero_90": 400,        # longest training demo has 373 steps
+}
 
-# Default normalization statistics for LIBERO spatial (OpenVLA-OFT pretrained)
+# Default normalization statistics for LIBERO (OpenVLA-OFT pretrained)
 # These match the training distribution for proper denormalization
 DEFAULT_NORM_STATS = {
     "libero_spatial_no_noops": {
@@ -120,9 +133,10 @@ class LIBEROBridge:
 
         # Episode settings
         ep_config = self.config.get("episode", {})
-        self.max_steps = ep_config.get("max_steps", 500)
+        self.max_steps = TASK_MAX_STEPS.get(self.task_suite_name, 500)
         self.action_chunk_size = ep_config.get("action_chunk_size", 8)
         self.vla_query_frequency = ep_config.get("vla_query_frequency", 8)
+        self.num_steps_wait = libero_config.get("num_steps_wait", 10)
 
         # Action clipping settings (safety bounds)
         self.max_position_delta = libero_config.get("max_position_delta", 0.05)
@@ -148,7 +162,7 @@ class LIBEROBridge:
         self._recording = False
 
         # Action chunk state
-        self._action_queue: List[np.ndarray] = []
+        self._action_queue: deque = deque(maxlen=self.action_chunk_size)
         self._chunk_index = 0
 
         # Dataset statistics (for denormalization)
@@ -181,133 +195,234 @@ class LIBEROBridge:
 
         logger.info(
             f"Loaded task {self.task_id} from suite '{self.task_suite_name}': "
-            f"'{self.task.language}'"
+            f"{self.task.language}"
         )
 
-        # Get initial states for benchmarking
-        self.init_states = self.task_suite.get_task_init_states(self.task_id)
+        # Initialize environment
+        import os
+        from libero.libero import get_libero_path
 
-        # Create environment
-        bddl_file = os.path.join(
-            self.task_suite.get_libero_path("bddl_files"),
+        task_bddl_file = os.path.join(
+            get_libero_path("bddl_files"),
             self.task.problem_folder,
             self.task.bddl_file,
         )
 
         env_args = {
-            "bddl_file_name": bddl_file,
+            "bddl_file_name": task_bddl_file,
             "camera_heights": self.camera_heights,
             "camera_widths": self.camera_widths,
         }
 
         self.env = OffScreenRenderEnv(**env_args)
-        self.env.seed(0)
-        self.env.reset()
+        self.env.seed(0)  # IMPORTANT: seed seems to affect object positions
 
-        logger.info("LIBERO environment initialized successfully")
+        # Get initial states
+        self.init_states = self.env.get_all_initial_states()
+
+        # Update unnorm_key based on task suite
+        self._update_unnorm_key()
+
+        logger.info(f"LIBERO environment initialized with {len(self.init_states)} initial states")
+
+    def _update_unnorm_key(self):
+        """Update the unnorm_key based on task suite."""
+        # Try different key variations
+        base_key = self.task_suite_name
+        possible_keys = [
+            base_key,
+            f"{base_key}_no_noops",
+        ]
+
+        for key in possible_keys:
+            if key in self._norm_stats:
+                self._unnorm_key = key
+                break
+        else:
+            logger.warning(
+                f"Could not find unnorm_key for suite '{self.task_suite_name}'. "
+                f"Using default: {self._unnorm_key}"
+            )
+
+    def _capture_observation(self) -> Dict[str, np.ndarray]:
+        """Capture observation from LIBERO environment.
+
+        Returns:
+            Dict with 'full_image', 'wrist_image', and 'state'
+        """
+        obs = self.env.sim.render(
+            camera_heights=self.camera_heights,
+            camera_widths=self.camera_widths,
+        )
+
+        # Extract images
+        full_image = obs["agentview_image"]
+        wrist_image = obs["robot0_eye_in_hand_image"]
+
+        # CRITICAL: Rotate 180 degrees to match LIBERO/OpenVLA-OFT training preprocessing
+        # Reference: https://github.com/roatienza/openvla-oft/experiments/robot/libero/libero_utils.py
+        full_image = full_image[::-1, ::-1]
+        wrist_image = wrist_image[::-1, ::-1]
+
+        # Get proprioception state
+        state = obs["robot0_joint_pos"].copy()
+        gripper_pos = obs["robot0_gripper_qpos"].copy()
+        state = np.concatenate([state, gripper_pos])
+
+        return {
+            "full_image": full_image,
+            "wrist_image": wrist_image,
+            "state": state,
+        }
+
+    def _process_action(self, action: np.ndarray) -> np.ndarray:
+        """Process action for LIBERO environment.
+
+        Args:
+            action: 7D action [dx, dy, dz, droll, dpitch, dyaw, gripper]
+
+        Returns:
+            Processed action ready for LIBERO environment
+        """
+        # Clip action magnitude for safety
+        clipped = clip_action_magnitude(
+            action,
+            max_position=self.max_position_delta,
+            max_rotation=self.max_rotation_delta,
+        )
+
+        # Normalize gripper action from [0,1] to [-1,1] for LIBERO
+        # Reference: https://github.com/roatienza/openvla-oft/experiments/robot/robot_utils.py
+        orig_low, orig_high = 0.0, 1.0
+        clipped[6] = 2 * (clipped[6] - orig_low) / (orig_high - orig_low) - 1
+
+        # Ensure gripper is in valid range [-1, 1] for LIBERO
+        clipped[6] = np.clip(clipped[6], -1.0, 1.0)
+
+        return clipped
+
+    def _get_dummy_action(self) -> np.ndarray:
+        """Get dummy/no-op action for stabilization."""
+        return np.array([0, 0, 0, 0, 0, 0, -1], dtype=np.float64)
 
     def run_episode(
         self,
-        instruction: str = None,
-        init_state_id: int = 0,
+        instruction: Optional[str] = None,
+        initial_state: Optional[np.ndarray] = None,
         record_video: bool = False,
     ) -> Dict[str, Any]:
-        """Run a single episode of the task.
+        """Run a single episode.
 
         Args:
-            instruction: Natural language instruction (uses task language if None)
-            init_state_id: Which initial state to use (0-9 for benchmarking)
+            instruction: Task instruction (defaults to task language)
+            initial_state: Initial state to reset to
             record_video: Whether to record video frames
 
         Returns:
-            Dict with episode results (success, steps, etc.)
+            Dict with episode results
         """
-        if self.env is None:
-            raise RuntimeError("Call initialize() first")
-
         if instruction is None:
             instruction = self.task.language
 
-        # Set initial state
-        if init_state_id < len(self.init_states):
-            self.env.set_init_state(self.init_states[init_state_id])
+        # Reset environment
+        if self.env is not None:
+            self.env.reset()
+            if initial_state is not None:
+                self.env.set_init_state(initial_state)
+            else:
+                self.env.set_init_state(self.init_states[0])
 
         self._step_count = 0
-        self._recording = record_video
-        self._video_frames = []
-        self._action_queue = []
+        self._action_queue.clear()
         self._chunk_index = 0
+        self._video_frames = []
+        self._recording = record_video
 
-        logger.info(f"Starting episode with instruction: '{instruction}'")
+        logger.info(f"Running episode with instruction: {instruction}")
+        logger.info(f"Max steps: {self.max_steps}, Wait steps: {self.num_steps_wait}")
 
-        # Main loop
-        while self._step_count < self.max_steps:
-            # Capture observation
-            observation = self._capture_observation()
+        # Run episode
+        success = False
+        t = 0
+        max_steps = self.max_steps + self.num_steps_wait
 
-            # Record frame if requested
-            if self._recording:
-                self._video_frames.append(observation["full_image"])
+        try:
+            while t < max_steps:
+                # Do nothing for the first few timesteps to let objects stabilize
+                if t < self.num_steps_wait:
+                    obs, reward, done, info = self.env.step(self._get_dummy_action())
+                    t += 1
+                    continue
 
-            # Query VLA every N steps (open-loop execution)
-            if self._chunk_index >= len(self._action_queue):
-                vla_result = self._query_vla(observation, instruction)
+                # Capture observation
+                observation = self._capture_observation()
 
-                if vla_result is None:
-                    logger.warning("VLA query failed, stopping episode")
+                # Record video frame if enabled
+                if self._recording:
+                    self._video_frames.append(observation["full_image"])
+
+                # If action queue is empty, requery VLA
+                if len(self._action_queue) == 0:
+                    result = self._query_vla(observation, instruction)
+                    if result is not None and "actions" in result:
+                        actions = result["actions"]
+                        for action in actions:
+                            processed = self._process_action(np.array(action))
+                            self._action_queue.append(processed)
+                        logger.debug(
+                            f"Queried VLA, got {len(actions)} actions. "
+                            f"Inference time: {result.get('inference_time_s', 'N/A'):.3f}s"
+                        )
+                    else:
+                        logger.warning("VLA query returned no actions, using dummy action")
+                        self._action_queue.append(self._get_dummy_action())
+
+                # Get action from queue
+                if len(self._action_queue) > 0:
+                    action = self._action_queue.popleft()
+                else:
+                    action = self._get_dummy_action()
+
+                # Execute action in environment
+                obs, reward, done, info = self.env.step(action.tolist())
+                if done:
+                    success = True
                     break
+                t += 1
 
-                # Process action chunk
-                actions = vla_result["actions"]
-                self._action_queue = self._process_action_chunk(actions)
-                self._chunk_index = 0
+        except Exception as e:
+            logger.error(f"Episode error: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
 
-            # Get next action from chunk
-            if self._chunk_index >= len(self._action_queue):
-                break
+        # Save video if recorded
+        if self._recording and self._video_frames:
+            self._save_video_frames(instruction)
 
-            action = self._action_queue[self._chunk_index]
-            self._chunk_index += 1
-
-            # Execute action in LIBERO environment
-            obs, reward, done, info = self.env.step(action)
-
-            self._step_count += 1
-
-            # Check for success
-            if done or reward > 0:
-                logger.info(
-                    f"Episode {self._episode_count + 1} SUCCESS "
-                    f"after {self._step_count} steps"
-                )
-                return {
-                    "success": True,
-                    "steps": self._step_count,
-                    "reward": reward,
-                    "instruction": instruction,
-                }
-
-        # Episode ended without success
-        logger.info(
-            f"Episode {self._episode_count + 1} FAILED "
-            f"after {self._step_count} steps"
-        )
-        return {
-            "success": False,
-            "steps": self._step_count,
-            "reward": 0,
+        episode_result = {
+            "success": success,
+            "steps": t,
             "instruction": instruction,
+            "task_id": self.task_id,
+            "task_suite": self.task_suite_name,
         }
+
+        logger.info(
+            f"Episode complete: success={success}, steps={t}, "
+            f"instruction={instruction}"
+        )
+
+        return episode_result
 
     def run_evaluation(
         self,
-        num_episodes: int = None,
+        num_episodes: Optional[int] = None,
         record_video: bool = False,
     ) -> Dict[str, Any]:
         """Run evaluation across multiple episodes.
 
         Args:
-            num_episodes: Number of episodes to run (uses config default if None)
+            num_episodes: Number of episodes to run (defaults to config value)
             record_video: Whether to record video frames
 
         Returns:
@@ -316,113 +431,63 @@ class LIBEROBridge:
         if num_episodes is None:
             num_episodes = self.num_episodes
 
+        logger.info(
+            f"Starting evaluation: {num_episodes} episodes, "
+            f"task {self.task_id} from {self.task_suite_name}"
+        )
+
         results = []
         success_count = 0
         total_steps = 0
 
-        for ep_idx in range(num_episodes):
-            logger.info(f"Running episode {ep_idx + 1}/{num_episodes}")
+        for episode_idx in range(num_episodes):
+            self._episode_count = episode_idx
 
-            episode_result = self.run_episode(
-                init_state_id=ep_idx % len(self.init_states),
+            # Get initial state for this episode
+            if episode_idx < len(self.init_states):
+                initial_state = self.init_states[episode_idx]
+            else:
+                initial_state = self.init_states[0]
+
+            # Run episode
+            result = self.run_episode(
+                instruction=self.task.language,
+                initial_state=initial_state,
                 record_video=record_video,
             )
 
-            results.append(episode_result)
-            if episode_result["success"]:
+            results.append(result)
+            if result["success"]:
                 success_count += 1
-            total_steps += episode_result["steps"]
+            total_steps += result["steps"]
 
-            self._episode_count += 1
-
-            # Save video if recorded
-            if record_video and self._video_frames:
-                self._save_video_frames(episode_result["instruction"])
+            # Log progress
+            logger.info(
+                f"Episode {episode_idx + 1}/{num_episodes}: "
+                f"success={result['success']}, steps={result['steps']}"
+            )
 
         # Calculate metrics
-        success_rate = success_count / num_episodes
-        avg_steps = total_steps / num_episodes
+        success_rate = success_count / num_episodes if num_episodes > 0 else 0.0
+        avg_steps = total_steps / num_episodes if num_episodes > 0 else 0.0
 
-        eval_results = {
-            "task": self.task.language,
+        eval_result = {
             "task_suite": self.task_suite_name,
             "task_id": self.task_id,
+            "task_name": self.task.language,
             "num_episodes": num_episodes,
             "success_count": success_count,
             "success_rate": success_rate,
-            "avg_steps": avg_steps,
+            "avg_episode_length": avg_steps,
             "episodes": results,
         }
 
         logger.info(
             f"Evaluation complete: {success_count}/{num_episodes} "
-            f"({success_rate:.1%} success rate, {avg_steps:.1f} avg steps)"
+            f"({success_rate:.1%} success rate)"
         )
 
-        return eval_results
-
-    def _capture_observation(self) -> Dict[str, np.ndarray]:
-        """Capture observation from the LIBERO environment.
-
-        Returns:
-            Dict with "full_image", "wrist_image", and "state"
-        """
-        obs = self.env._get_obs()
-
-        # Extract images
-        full_image = obs["agentview_image"]
-        wrist_image = obs["robot0_eye_in_hand_image"]
-
-        # Preprocess images (center crop + resize to 224x224)
-        if self.center_crop:
-            full_image = crop_and_resize(
-                full_image, self.target_size, center_crop=True
-            )
-            wrist_image = crop_and_resize(
-                wrist_image, self.target_size, center_crop=True
-            )
-
-        # Extract state (joint positions + gripper)
-        state = obs["robot0_joint_pos"].copy()
-
-        return {
-            "full_image": full_image,
-            "wrist_image": wrist_image,
-            "state": state,
-        }
-
-    def _process_action_chunk(
-        self, actions: List[np.ndarray]
-    ) -> List[np.ndarray]:
-        """Process a complete action chunk from VLA output.
-
-        For LIBERO, we bypass IK solving and directly apply safety
-        clipping to the delta EE actions.
-
-        Args:
-            actions: List of 7D action arrays [dx, dy, dz, droll, dpitch, dyaw, gripper]
-
-        Returns:
-            List of processed 7D action arrays
-        """
-        processed_actions = []
-
-        for i, action in enumerate(actions):
-            action = np.asarray(action, dtype=np.float64)
-
-            # Clip action magnitude for safety
-            clipped = clip_action_magnitude(
-                action,
-                max_position=self.max_position_delta,
-                max_rotation=self.max_rotation_delta,
-            )
-
-            # Ensure gripper is in valid range [-1, 1] for LIBERO
-            clipped[6] = np.clip(clipped[6], -1.0, 1.0)
-
-            processed_actions.append(clipped)
-
-        return processed_actions
+        return eval_result
 
     def _query_vla(
         self,
@@ -485,7 +550,7 @@ class LIBEROBridge:
             self.env.set_init_state(self.init_states[0])
 
         self._step_count = 0
-        self._action_queue = []
+        self._action_queue.clear()
         self._chunk_index = 0
 
         logger.info("LIBERO environment reset")
@@ -583,7 +648,7 @@ class VLAClient:
         return response.json()
 
 
-# ─── Embedded Mode (No HTTP) ─────────────────────────────────────────────────
+# ──── Embedded Mode (No HTTP) ─────────────────────────────────────────────────
 
 class EmbeddedLIBEROBridge:
     """Embedded LIBERO bridge that loads the model directly (no HTTP server).
