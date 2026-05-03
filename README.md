@@ -1,6 +1,270 @@
-# Isaac-VLA: OpenVLA-OFT on Franka Emika in Isaac Sim
+# Isaac-VLA: OpenVLA-OFT on Franka Emika
 
-A complete system for deploying OpenVLA-OFT vision-language-action models on a Franka Emika Panda robot arm in NVIDIA Isaac Sim, with a kitchen manipulation environment, model serving, rich terminal UI, and Python API.
+A complete system for deploying OpenVLA-OFT vision-language-action models on a Franka Emika Panda robot arm. Supports **LIBERO MuJoCo** (benchmark evaluation, zero domain gap) and **Isaac Sim** (realistic rendering, real-world deployment prep).
+
+---
+
+## Quick Start: LIBERO Benchmark Evaluation (Recommended)
+
+The fastest way to get started — zero visual domain gap with OpenVLA-OFT training data.
+
+### 1. Install Dependencies
+
+```bash
+# Install LIBERO (includes MuJoCo and Robosuite)
+pip install libero
+
+# Download LIBERO benchmark datasets
+cd /home/rowel/miniconda3/envs/vla-oft/lib/python3.10/site-packages/libero
+python benchmark_scripts/download_libero_datasets.py
+```
+
+### 2. Start VLA Server
+
+```bash
+cd /home/rowel/sandbox/isaac-vla
+python scripts/run_vla_server.py
+```
+
+### 3. Run Evaluation
+
+```bash
+# Single task
+python scripts/run_libero_eval.py --task-suite libero_spatial --task-id 0
+
+# All tasks in a suite
+python scripts/run_libero_eval.py --task-suite libero_spatial --all-tasks
+
+# All suites
+python scripts/run_libero_eval.py --all-suites --num-episodes 10
+```
+
+---
+
+## Full Setup Guide
+
+### Prerequisites
+
+| Requirement | Version | Notes |
+|-------------|---------|-------|
+| Python | 3.10+ | Conda recommended |
+| CUDA | 12.1+ | RTX 5090 tested |
+| GPU | 16GB+ VRAM | OpenVLA-OFT 7B needs ~16GB |
+| Isaac Sim | 4.2.0+ | Optional — for realistic rendering |
+
+### Install from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/roatienza/isaac-vla
+cd /home/rowel/sandbox/isaac-vla
+
+# Create conda environment
+conda create -n isaac-vla python=3.10 -y
+conda activate isaac-vla
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Install LIBERO (for MuJoCo benchmark)
+pip install libero
+cd /home/rowel/miniconda3/envs/vla-oft/lib/python3.10/site-packages/libero
+python benchmark_scripts/download_libero_datasets.py
+```
+
+---
+
+## Running LIBERO Evaluation
+
+LIBERO provides **zero domain gap** with OpenVLA-OFT training data — same MuJoCo renderer, physics, and camera viewpoints.
+
+### Task Suites
+
+| Suite | Tasks | Description | Max Steps |
+|-------|-------|-------------|-----------|
+| `libero_spatial` | 10 | Spatial reasoning (pick & place to different locations) | 220 |
+| `libero_object` | 10 | Object manipulation (different target objects) | 280 |
+| `libero_goal` | 10 | Goal conditioning (achieve different end states) | 300 |
+| `libero_10` | 10 | Combined spatial + object + goal tasks | 520 |
+| `libero_90` | 90 | Full benchmark (all tasks combined) | 400 |
+
+### Usage
+
+```bash
+# Start VLA server (Terminal 1)
+python scripts/run_vla_server.py --config config/default.yaml
+
+# Evaluate single task (Terminal 2)
+python scripts/run_libero_eval.py --task-suite libero_spatial --task-id 0
+
+# Evaluate all tasks in a suite
+python scripts/run_libero_eval.py --task-suite libero_spatial --all-tasks --num-episodes 10
+
+# Evaluate all suites
+python scripts/run_libero_eval.py --all-suites --num-episodes 10
+
+# Record videos during evaluation
+python scripts/run_libero_eval.py --task-suite libero_spatial --task-id 0 --record-video
+
+# Custom output directory
+python scripts/run_libero_eval.py --task-suite libero_spatial --task-id 0 --output-dir ./results
+```
+
+### Configuration
+
+Edit `config/default.yaml` to tune LIBERO evaluation:
+
+```yaml
+libero:
+  task_suite: "libero_spatial"
+  task_id: 0
+  num_episodes: 10
+  camera_heights: 256
+  camera_widths: 256
+  center_crop: true
+  target_size: [224, 224]
+  num_steps_wait: 10           # Physics stabilization steps
+  max_position_delta: 0.05     # Safety clipping (meters)
+  max_rotation_delta: 0.1      # Safety clipping (radians)
+```
+
+### Output
+
+Results are saved to `data/libero_results/evaluation_results.json`:
+
+```json
+{
+  "libero_spatial": {
+    "task_suite": "libero_spatial",
+    "task_id": 0,
+    "task_name": "pick up the black bowl...",
+    "num_episodes": 10,
+    "success_count": 2,
+    "success_rate": 0.2,
+    "avg_episode_length": 220.0
+  }
+}
+```
+
+---
+
+## Fine-Tuning on LIBERO Data
+
+Fine-tune OpenVLA-OFT on LIBERO demonstrations for improved performance.
+
+### Step 1: Collect Demonstrations (Optional)
+
+Use LIBERO's built-in demonstration datasets or collect your own:
+
+```bash
+# LIBERO datasets are pre-downloaded during setup
+# Check available datasets:
+ls ~/.libero/datasets/
+```
+
+### Step 2: Configure Fine-Tuning
+
+Edit `config/finetune.yaml`:
+
+```yaml
+model:
+  base_checkpoint: "moojink/openvla-7b-oft-finetuned-libero-spatial"
+  use_l1_regression: true
+  num_images_in_input: 2
+  use_proprio: true
+  proprio_dim: 8
+
+dataset:
+  name: "libero_spatial"
+  data_dir: "~/.libero/datasets/libero_spatial"
+  format: "rlds"
+
+training:
+  method: "lora"
+  lora:
+    rank: 32
+    alpha: 32
+    dropout: 0.0
+  learning_rate: 5.0e-5
+  batch_size: 2
+  gradient_accumulation_steps: 4
+  num_epochs: 20
+```
+
+### Step 3: Run Fine-Tuning
+
+```bash
+cd /home/rowel/sandbox/openvla-oft
+
+# LoRA fine-tuning (recommended for single GPU)
+python -m prismatic.vla.train \
+    --pretrained_checkpoint moojink/openvla-7b-oft-finetuned-libero-spatial \
+    --dataset_dir ~/.libero/datasets/libero_spatial \
+    --run_output_dir ./checkpoints/libero-spatial-lora \
+    --use_l1_regression True \
+    --num_images_in_input 2 \
+    --use_proprio True \
+    --proprio_dim 8 \
+    --lora_rank 32 \
+    --lora_alpha 32 \
+    --batch_size 2 \
+    --gradient_accumulation_steps 4 \
+    --learning_rate 5e-5 \
+    --num_epochs 20 \
+    --bf16 \
+    --wandb_project isaac-vla \
+    --wandb_name libero-spatial-lora32
+```
+
+### Step 4: Evaluate Fine-Tuned Model
+
+```bash
+# Point VLA server to fine-tuned checkpoint
+python scripts/run_vla_server.py --checkpoint ./checkpoints/libero-spatial-lora
+
+# Run evaluation
+python scripts/run_libero_eval.py --task-suite libero_spatial --all-tasks --num-episodes 50
+```
+
+### Hyperparameter Guide
+
+| Parameter | LoRA | Full FT | Notes |
+|-----------|------|---------|-------|
+| Learning Rate | 5e-5 | 1e-5 | Lower for full FT |
+| Batch Size | 2 | 2 | Per GPU |
+| Grad Accumulation | 4 | 8 | Effective batch = 8/16 |
+| LoRA Rank | 32 | N/A | Higher = more capacity |
+| Epochs | 20 | 10 | More for LoRA |
+| Warmup Steps | 500 | 500 | Cosine LR schedule |
+
+---
+
+## Running Isaac Sim (Optional)
+
+For realistic rendering and real-world deployment preparation.
+
+### Isaac Sim Setup
+
+```bash
+# Install Isaac Sim 4.2.0+
+# Download from: https://developer.nvidia.com/isaac-sim
+
+# Launch sim bridge
+<isaac_sim_install>/python.sh /home/rowel/sandbox/isaac-vla/scripts/run_sim_bridge.py --headless --save-video
+```
+
+### LIBERO vs Isaac Sim Comparison
+
+| Feature | LIBERO (MuJoCo) | Isaac Sim |
+|---------|----------------|-----------|
+| **Visual Domain Gap** | ✅ Zero (matches training) | ❌ Different renderer |
+| **Physics** | ✅ MuJoCo (matches training) | ❌ PhysX (different) |
+| **IK Failures** | ✅ None (direct EE control) | ⚠️ Possible |
+| **Speed** | ✅ Fast (~10-30 FPS) | ⚠️ Slower (~5-15 FPS) |
+| **Realism** | ❌ Synthetic | ✅ Realistic rendering |
+| **Use Case** | Benchmark evaluation, fine-tuning | Real-world deployment prep |
+
+---
 
 ## Visualization Guide
 
@@ -241,84 +505,6 @@ print(result)
 > to the project root, so config file paths (e.g., `config/default.yaml`) will resolve correctly
 > even when launched from outside the project directory.
 ```
-
-## Running with LIBERO & MuJoCo (Recommended for Benchmarking)
-
-For **benchmark evaluation and fine-tuning**, using the **LIBERO MuJoCo environment** is strongly recommended over Isaac Sim because:
-
-- **Zero visual domain gap**: Same MuJoCo OpenGL renderer as OpenVLA-OFT training data
-- **Same physics engine**: MuJoCo dynamics match training distribution exactly
-- **No IK solving**: Direct delta EE action execution (no IK failures)
-- **Proven pipeline**: LIBERO evaluation works out-of-the-box with OpenVLA-OFT checkpoints
-- **Faster iteration**: MuJoCo runs faster than Isaac Sim for benchmark evaluation
-
-### Installation
-
-```bash
-# 1. Install LIBERO
-pip install libero
-
-# 2. Download LIBERO datasets (required for evaluation)
-cd LIBERO  # Clone from https://github.com/Lifelong-Robot-Learning/LIBERO
-python benchmark_scripts/download_libero_datasets.py
-
-# 3. Install MuJoCo (usually comes with LIBERO)
-pip install mujoco
-```
-
-### Running LIBERO Evaluation
-
-```bash
-# Start VLA server (Terminal 1)
-python scripts/run_vla_server.py --config config/default.yaml
-
-# Evaluate on a single task (Terminal 2)
-python scripts/run_libero_eval.py --task-suite libero_spatial --task-id 0
-
-# Evaluate all tasks in a suite
-python scripts/run_libero_eval.py --task-suite libero_spatial --all-tasks
-
-# Evaluate all LIBERO suites
-python scripts/run_libero_eval.py --all-suites
-
-# Record videos during evaluation
-python scripts/run_libero_eval.py --task-suite libero_spatial --task-id 0 --record-video
-
-# Custom number of episodes
-python scripts/run_libero_eval.py --task-suite libero_spatial --task-id 0 --num-episodes 10
-```
-
-### LIBERO Task Suites
-
-| Suite | Tasks | Description |
-|-------|-------|-------------|
-| `libero_spatial` | 5 | Spatial reasoning (pick & place to different locations) |
-| `libero_object` | 5 | Object manipulation (different target objects) |
-| `libero_goal` | 5 | Goal conditioning (achieve different end states) |
-| `libero_10` | 10 | Combined spatial + object + goal tasks |
-| `libero_spatial_2` | 5 | Additional spatial tasks |
-| `libero_object_2` | 5 | Additional object tasks |
-| `libero_goal_2` | 5 | Additional goal tasks |
-| `libero_10_2` | 10 | Combined additional tasks |
-
-### Why Use LIBERO Instead of Isaac Sim?
-
-| Feature | LIBERO (MuJoCo) | Isaac Sim |
-|---------|----------------|-----------|
-| **Visual Domain Gap** | ✅ Zero (matches training) | ❌ Different renderer |
-| **Physics** | ✅ MuJoCo (matches training) | ❌ PhysX (different) |
-| **IK Failures** | ✅ None (direct EE control) | ⚠️ Possible |
-| **Speed** | ✅ Fast (~10-30 FPS) | ⚠️ Slower (~5-15 FPS) |
-| **Realism** | ❌ Synthetic | ✅ Realistic rendering |
-| **Use Case** | Benchmark evaluation, fine-tuning | Real-world deployment prep |
-
-### When to Use Isaac Sim
-
-Use Isaac Sim when you need:
-- **Realistic rendering** for real-world deployment preparation
-- **PhysX physics** for real robot simulation
-- **Advanced sensor simulation** (depth, segmentation, etc.)
-- **Custom scene building** beyond LIBERO tasks
 
 ## File Structure
 
