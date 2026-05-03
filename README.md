@@ -75,8 +75,11 @@ pip install -r requirements.txt
 # LIBERO (MuJoCo benchmark environment)
 pip install libero
 
+# Clone LIBERO repository (needed for BDDL task files)
+git clone https://github.com/Lifelong-Robot-Learning/LIBERO
+
 # Download LIBERO benchmark datasets and assets
-python -c "import libero; libero.utils.download_libero_assets()"
+cd LIBERO && python benchmark_scripts/download_libero_datasets.py
 ```
 
 ### Step 4: Verify Installation
