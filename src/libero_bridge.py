@@ -267,13 +267,26 @@ class LIBEROBridge:
         full_image = full_image[::-1, ::-1]
         wrist_image = wrist_image[::-1, ::-1]
 
-        # Get proprioception state (7 joint positions + 1 gripper width)
+        # Ensure images are uint8 (LIBERO may return float32 in [0,1] or [0,255])
+        if full_image.dtype != np.uint8:
+            if full_image.max() <= 1.0:
+                full_image = (full_image * 255).astype(np.uint8)
+            else:
+                full_image = full_image.astype(np.uint8)
+        if wrist_image.dtype != np.uint8:
+            if wrist_image.max() <= 1.0:
+                wrist_image = (wrist_image * 255).astype(np.uint8)
+            else:
+                wrist_image = wrist_image.astype(np.uint8)
+
+        # Get proprioception state (8D: 7 joint positions + 1 gripper width)
+        # CRITICAL: OpenVLA-OFT expects exactly 8D state
+        # robot0_gripper_qpos may return 4 values in some robosuite versions
+        # We only need the first value (gripper width)
         state = np.concatenate([
-            obs["robot0_joint_pos"].copy(),
-            obs["robot0_gripper_qpos"].copy(),
-        ])
-        gripper_pos = obs["robot0_gripper_qpos"].copy()
-        state = np.concatenate([state, gripper_pos])
+            obs["robot0_joint_pos"][:7],       # 7D joint positions
+            obs["robot0_gripper_qpos"][:1],    # 1D gripper width (first value only)
+        ]).astype(np.float32)
 
         return {
             "full_image": full_image,
@@ -607,11 +620,9 @@ class VLAClient:
         """
         payload = {
             "image": image.tolist(),
+            "wrist_image": wrist_image.tolist() if wrist_image is not None else None,
             "instruction": instruction,
         }
-
-        if wrist_image is not None:
-            payload["wrist_image"] = wrist_image.tolist()
 
         if state is not None:
             payload["state"] = state.tolist()
