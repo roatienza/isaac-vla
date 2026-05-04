@@ -1,6 +1,6 @@
 # Isaac-VLA: OpenVLA-OFT on Franka Emika
 
-A complete system for deploying OpenVLA-OFT vision-language-action models on a Franka Emika Panda robot arm. Supports **LIBERO MuJoCo** (benchmark evaluation, zero domain gap) and **Isaac Sim** (realistic rendering, real-world deployment prep).
+A complete system for deploying [OpenVLA-OFT](https://github.com/moojink/openvla-oft) (Optimized Fine-Tuning of Vision-Language-Action models) on a **Franka Emika Panda** robot arm. Supports **LIBERO MuJoCo** (benchmark evaluation, zero domain gap) and **Isaac Sim** (realistic rendering, real-world deployment prep).
 
 ---
 
@@ -177,21 +177,21 @@ libero:
 ### Understanding the Evaluation Pipeline
 
 ```
-┌──────────────────┐    HTTP     ┌──────────────────────┐
-│  VLA Server      │◄───────────►│  LIBERO Bridge       │
-│                  │             │                      │
-│ OpenVLA-OFT 7B   │             │ MuJoCo Env           │
-│ (L1 Regression)  │             │ Franka Robot         │
-│                  │             │ 3P + Wrist Cam       │
-└──────────────────┘             └──────────────────────┘
+┌─────────────────┐    HTTP     ┌─────────────────────────┐
+│  VLA Server      │◄───────────►│  LIBERO Bridge          │
+│                  │             │                         │
+│ OpenVLA-OFT 7B   │             │ MuJoCo Env              │
+│ (L1 Regression)  │             │ Franka Robot            │
+│                  │             │ 3P + Wrist Cam          │
+└─────────────────┘             └─────────────────────────┘
                                     │
                                     ▼
-                           ┌──────────────────────┐
-                           │  Observation         │
-                           │  224×224 images      │
-                           │  8D proprio          │
-                           │  Task language       │
-                           └──────────────────────┘
+                           ┌─────────────────────────┐
+                           │  Observation            │
+                           │  224×224 images         │
+                           │  8D proprio             │
+                           │  Task language           │
+                           └─────────────────────────┘
 ```
 
 1. **Reset**: Environment resets with random initial state from task suite
@@ -226,129 +226,95 @@ Each dataset contains demonstration trajectories in RLDS format:
 - `agentview_image`: Third-person camera (256×256)
 - `eye_in_hand_image`: Wrist camera (256×256)
 - `robot0_joint_pos`: 7 joint positions
-- `robot0_gripper_qpos`: Gripper state
-- `actions`: 7D delta EE actions
+- `robot0_gripper_qpos`: Gripper width
+- `actions`: 7D delta EE actions (dx, dy, dz, droll, dpitch, dyaw, gripper)
 
-### Step 2: Quick Test Run (5,000 Steps)
-
-For a quick validation that fine-tuning works:
+### Step 2: Fine-Tune
 
 ```bash
-python scripts/run_libero_finetune.py \
-    --suite libero_spatial \
-    --max-steps 5000 \
-    --save-freq 5000 \
-    --batch-size 1 \
-    --lr 0.0005 \
-    --lora-rank 32
+# Fine-tune on LIBERO-Spatial (150K steps, LoRA rank 32)
+python scripts/run_libero_finetune.py --suite libero_spatial --max-steps 150000 --lora-rank 32
+
+# Fine-tune on LIBERO-Object
+python scripts/run_libero_finetune.py --suite libero_object --max-steps 150000 --lora-rank 32
+
+# Fine-tune on LIBERO-Goal
+python scripts/run_libero_finetune.py --suite libero_goal --max-steps 150000 --lora-rank 32
+
+# Fine-tune on LIBERO-10 (combined)
+python scripts/run_libero_finetune.py --suite libero_10 --max-steps 150000 --lora-rank 32
+
+# Quick test run (5K steps)
+python scripts/run_libero_finetune.py --suite libero_spatial --max-steps 5000
 ```
 
-This takes ~23 minutes on an RTX 5090 and saves a checkpoint at step 5,000.
+### Fine-Tuning Configuration
 
-### Step 3: Production Fine-Tuning (150,000 Steps)
-
-For production-quality results matching the OFT paper (~97% success rate):
-
-```bash
-python scripts/run_libero_finetune.py \
-    --suite libero_spatial \
-    --max-steps 150000 \
-    --save-freq 10000 \
-    --batch-size 1 \
-    --lr 0.0005 \
-    --lora-rank 64
-```
-
-This takes ~11 hours on an RTX 5090 and saves checkpoints every 10,000 steps.
-
-### Step 4: Fine-Tune All Task Suites
-
-To train a generalist model across all LIBERO tasks:
-
-```bash
-python scripts/run_libero_finetune.py \
-    --suite libero_90 \
-    --max-steps 150000 \
-    --save-freq 10000 \
-    --batch-size 1 \
-    --lr 0.0005 \
-    --lora-rank 64
-```
-
-### Hyperparameter Guide
-
-| Parameter | Quick Test | Production | Notes |
-|-----------|-----------|------------|-------|
-| `--max-steps` | 5,000 | 150,000 | 150K recommended for best results |
-| `--save-freq` | 5,000 | 10,000 | Must be ≤ max-steps |
-| `--batch-size` | 1 | 1 | Larger batches need more VRAM |
-| `--lr` | 0.0005 | 0.0005 | Learning rate for LoRA |
-| `--lora-rank` | 32 | 64 | Higher rank = more capacity |
-| `--lora-alpha` | 32 | 64 | Typically equals rank |
-| `--lora-dropout` | 0.0 | 0.0 | Dropout for LoRA layers |
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--suite` | `libero_spatial` | LIBERO task suite |
+| `--max-steps` | 150000 | Total training steps |
+| `--save-freq` | 10000 | Checkpoint save interval |
+| `--batch-size` | 1 | Batch size (VRAM-limited) |
+| `--lr` | 0.0005 | Learning rate |
+| `--lora-rank` | 32 | LoRA adapter rank |
+| `--lora-alpha` | 16 | LoRA scaling factor |
+| `--lora-dropout` | 0.0 | LoRA dropout rate |
+| `--image-aug` | off | Image augmentation |
 
 ### Expected Results
 
-| Training Steps | libero_spatial | libero_object | libero_goal | libero_10 |
-|---------------|---------------|---------------|-------------|-----------|
-| 0 (base model) | ~10-20% | ~5-15% | ~10-20% | ~5-15% |
-| 5,000 | ~20-40% | ~15-30% | ~15-35% | ~10-25% |
-| 50,000 | ~70-85% | ~60-75% | ~65-80% | ~50-65% |
-| 100,000 | ~90-95% | ~85-92% | ~85-93% | ~75-88% |
-| 150,000 | ~95-98% | ~92-96% | ~90-95% | ~85-92% |
+| Training Steps | Expected Success Rate (LIBERO-Spatial) | Notes |
+|----------------|----------------------------------------|-------|
+| 0 (base model) | ~15% | Zero-shot generalization |
+| 5,000 | ~10–20% | Barely one epoch |
+| 50,000 | ~60–75% | Partial convergence |
+| 100,000 | ~85–92% | Near convergence |
+| 150,000 | ~90–97% | Full convergence (OFT paper) |
 
-> **Note**: Results vary based on hyperparameters, dataset quality, and random seed. The OFT paper reports ~97% on spatial tasks after 150K steps.
+### Architecture
+
+```
+OpenVLA-7B (frozen)
+├── Vision Backbone (frozen)
+├── LLM Backbone (frozen)
+├── LoRA adapters (trainable): q_proj, v_proj, k_proj, o_proj
+├── Proprioception projector (trainable): ~16.8M params
+└── L1 Regression action head (trainable): ~151.1M params
+```
+
+**Total trainable parameters:** ~278.7M (1.45% of 7.65B total)
 
 ---
 
 ## Using Your Trained Checkpoint
 
-After fine-tuning, your checkpoint will be saved in the `checkpoints/` directory. Here's how to use it:
-
 ### 1. Locate Your Checkpoint
 
 ```bash
-# List available checkpoints
-ls -la checkpoints/
-
-# Example checkpoint path pattern:
-# checkpoints/openvla-7b+libero_spatial_no_noops+b1+lr-0.0005+lora-r32+dropout-0.0--image_aug--libero_spatial_ft_lora32_bs1/checkpoint-5000/
+ls checkpoints/openvla-7b+libero_spatial_no_noops+*/
+# Find the latest checkpoint directory (e.g., checkpoint-10000, checkpoint-150000)
 ```
 
-### 2. Start VLA Server with Your Checkpoint
+### 2. Start the VLA Server with Your Checkpoint
 
 ```bash
-# Terminal 1: Start VLA server pointing to your checkpoint
 python scripts/run_vla_server.py \
-    --checkpoint /path/to/your/checkpoint-5000/
+    --checkpoint /path/to/checkpoint-150000/
 ```
 
-### 3. Evaluate on LIBERO Tasks
+### 3. Run Evaluation
 
 ```bash
-# Terminal 2: Evaluate single task
+# Single task
 python scripts/run_libero_eval.py --task-suite libero_spatial --task-id 0
 
-# Evaluate all tasks in a suite
-python scripts/run_libero_eval.py --task-suite libero_spatial --all-tasks --num-episodes 10
+# All tasks in a suite
+python scripts/run_libero_eval.py --task-suite libero_spatial --all-tasks
 
-# Evaluate all suites with your fine-tuned model
-python scripts/run_libero_eval.py --all-suites --num-episodes 5
+# All suites
+python scripts/run_libero_eval.py --all-suites --num-episodes 50
 ```
-
-### 4. Troubleshooting Poor Performance
-
-If you're getting 0% success rate, check these common issues:
-
-| Issue | Symptom | Fix |
-|-------|---------|-----|
-| **Action clipping too aggressive** | Robot barely moves | Set `max_position_delta: 1.0` and `max_rotation_delta: 1.0` in `config/default.yaml` |
-| **Insufficient training** | Random movements | Train for at least 50K steps (150K recommended) |
-| **Wrong checkpoint** | Server uses base model | Verify `--checkpoint` path points to fine-tuned weights |
-| **Proprio dimension mismatch** | Server 500 errors | Ensure state is 8D (7 joints + 1 gripper) |
-| **Missing LIBERO files** | Env creation fails | Run `python -c "import libero; libero.utils.download_libero_assets()"` |
-
-For detailed analysis and production fine-tuning guide, see [docs/PRODUCTION_FINETUNING.md](docs/PRODUCTION_FINETUNING.md).
 
 ---
 
@@ -427,76 +393,6 @@ isaac-vla/
     ├── KITCHEN_TASKS.md             # Kitchen task definitions
     └── PRODUCTION_FINETUNING.md     # Production fine-tuning guide
 ```
-
----
-
-## Development with OnIt Agent
-
-The **OnIt agent** is an autonomous development assistant that can manage isaac-vla development tasks, run experiments, and automate workflows.
-
-### Quick Start
-
-```bash
-# Launch OnIt agent with thinking mode and unrestricted access
-onit --think --unrestricted --target-env vla-oft
-
-# The agent will:
-# - Activate the vla-oft conda environment
-# - Clone/update the isaac-vla repository
-# - Execute development tasks autonomously
-# - Commit and push changes to the repository
-```
-
-### Agent Capabilities
-
-| Capability | Description |
-|------------|-------------|
-| **Code Development** | Write, modify, and debug Python code |
-| **Experiment Management** | Run fine-tuning, evaluation, and data collection |
-| **Documentation** | Generate and update documentation |
-| **Git Management** | Commit, push, and manage branches |
-| **File System** | Read, write, and organize project files |
-| **Web Research** | Search for documentation and solutions |
-| **Process Management** | Start/stop servers and background processes |
-
-### Example Agent Commands
-
-```bash
-# Ask the agent to implement a feature
-onit --think --unrestricted --target-env vla-oft "implement LIBERO evaluation pipeline"
-
-# Ask the agent to debug an issue
-onit --think --unrestricted --target-env vla-oft "fix the 0% success rate in LIBERO evaluation"
-
-# Ask the agent to update documentation
-onit --think --unrestricted --target-env vla-oft "update README with fine-tuning guide"
-
-# Ask the agent to run experiments
-onit --think --unrestricted --target-env vla-oft "fine-tune OpenVLA-OFT on libero_spatial for 150K steps"
-```
-
-### Agent Workflow
-
-```
-User Request → OnIt Agent → Execute Tools → Modify Code → Test → Commit → Push
-     ↑                                                                              ↓
-     └──────────────────────────────────────────────────────────────────────────────┘
-```
-
-The agent operates in the `vla-oft` conda environment and has full access to:
-- File system operations (read, write, edit)
-- Shell command execution
-- Git operations (commit, push, branch management)
-- Web search and documentation lookup
-- Process management (start/stop servers)
-
-### Best Practices
-
-1. **Be specific**: Provide clear, detailed instructions for complex tasks
-2. **Review changes**: The agent commits and pushes automatically — review the git history
-3. **Use `--think`**: Enables deeper reasoning for complex development tasks
-4. **Use `--unrestricted`**: Allows full tool access for comprehensive development
-5. **Specify `--target-env`**: Ensures the agent uses the correct conda environment
 
 ---
 

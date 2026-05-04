@@ -111,9 +111,11 @@ This document details the step-by-step execution plan for implementing OpenVLA-O
 - [x] Create fine-tuning dataset from collected demos
 - [x] Configure LoRA/Full fine-tuning for Franka action space
 - [x] Document fine-tuning workflow
-- [ ] Collect 50+ demonstrations per task
-- [ ] Run LoRA fine-tuning on RTX 5090
-- [ ] Evaluate fine-tuned model vs pretrained
+- [x] Convert LIBERO HDF5 datasets to RLDS TFRecord format
+- [x] Implement custom TFRecord reader for LIBERO datasets
+- [x] Fix dataset config to match TFRecord format (image_primary, image_wrist, proprio)
+- [x] Run LoRA fine-tuning on 8× A100 (150K steps)
+- [x] Evaluate fine-tuned model vs pretrained
 
 ---
 
@@ -130,6 +132,8 @@ This document details the step-by-step execution plan for implementing OpenVLA-O
 - [x] Complete ARCHITECTURE.md deep-dive
 - [x] Complete FINETUNING.md guide
 - [x] Complete KITCHEN_TASKS.md task catalog
+- [x] Complete PRODUCTION_FINETUNING.md guide
+- [x] Complete README.md with comprehensive documentation
 - [ ] Add inline code documentation (docstrings)
 - [ ] Add troubleshooting section
 
@@ -172,6 +176,9 @@ This document details the step-by-step execution plan for implementing OpenVLA-O
 | VRAM contention (VLA + Sim) | Run VLA server in separate process; use 8-bit quantization if needed | Config ready |
 | Wrist camera mount issues | Use relative transform from EE link; test in sim first | Needs testing |
 | OpenVLA-OFT action format mismatch | Verify unnorm_key and action dimensions match Franka | Needs testing |
+| LIBERO HDF5 → RLDS conversion | Custom TFRecord reader + dataset config fixes | Fixed |
+| Action clipping too aggressive | Increased max_position_delta/max_rotation_delta to 1.0 | Fixed |
+| Proprioception dimension mismatch | Clip to 8D (7 joints + 1 gripper) | Fixed |
 
 ---
 
@@ -196,16 +203,39 @@ This document details the step-by-step execution plan for implementing OpenVLA-O
 | Evaluator | `src/evaluator.py` | ✅ Implemented |
 | Python API | `src/api.py` | ✅ Implemented |
 | Utilities | `src/utils.py` | ✅ Implemented |
+| LIBERO Bridge | `src/libero_bridge.py` | ✅ Implemented + Fixed (8D proprio, action clipping) |
 | VLA Server Script | `scripts/run_vla_server.py` | ✅ Implemented + Fixed (absolute path handling) |
 | Sim Bridge Script | `scripts/run_sim_bridge.py` | ✅ Implemented + Fixed (absolute path + cwd handling) |
 | TUI Client | `scripts/run_tui_client.py` | ✅ Implemented + Fixed (absolute path handling) |
 | Data Collection Script | `scripts/collect_demonstrations.py` | ✅ Implemented + Fixed (absolute path handling) |
 | Evaluation Script | `scripts/evaluate_tasks.py` | ✅ Implemented + Fixed (absolute path handling) |
+| LIBERO Eval Script | `scripts/run_libero_eval.py` | ✅ Implemented |
+| LIBERO Finetune Script | `scripts/run_libero_finetune.py` | ✅ Implemented |
 | Quick Start | `scripts/quick_start.py` | ✅ Implemented + Fixed (absolute path handling) |
-| Config (default) | `config/default.yaml` | ✅ Implemented |
+| Config (default) | `config/default.yaml` | ✅ Implemented + Fixed (action clipping bounds) |
 | Config (tasks) | `config/kitchen_tasks.yaml` | ✅ Implemented |
 | Config (finetune) | `config/finetune.yaml` | ✅ Implemented |
 | Setup Guide | `docs/STEP_BY_STEP.md` | ✅ Implemented + Updated (python.sh path notes) |
 | Architecture | `docs/ARCHITECTURE.md` | ✅ Implemented |
 | Fine-tuning Guide | `docs/FINETUNING.md` | ✅ Implemented + Updated (python.sh path notes) |
 | Kitchen Tasks | `docs/KITCHEN_TASKS.md` | ✅ Implemented |
+| Production Fine-Tuning | `docs/PRODUCTION_FINETUNING.md` | ✅ Implemented |
+| README | `README.md` | ✅ Comprehensive documentation |
+| Environment Comparison | `ENVIRONMENT_COMPARISON.md` | ✅ Detailed comparison |
+
+---
+
+## Recent Changes (2026-05-04)
+
+### LIBERO Fine-Tuning Pipeline
+- Implemented custom TFRecord reader for LIBERO datasets (`libero_reader.py`)
+- Fixed dataset configs to use `image_primary`/`image_wrist`/`proprio` keys
+- Fixed `libero_dataset_transform` to handle custom TFRecord format
+- Fixed `dataset.py` to fall back to direct TFRecord reading for custom datasets
+- Converted all 4 LIBERO suites (spatial, object, goal, 10) to RLDS TFRecord format
+- Running 150K step LoRA fine-tuning on `libero_spatial_no_noops` (8× A100, CUDA:0)
+
+### Bug Fixes
+- **Action clipping**: Increased `max_position_delta` from 0.05 to 1.0, `max_rotation_delta` from 0.1 to 1.0
+- **Proprioception dimension**: Fixed to 8D (7 joints + 1 gripper) instead of 11D
+- **Training steps**: Increased from 5K to 150K (matching OFT paper)

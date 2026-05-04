@@ -1,6 +1,6 @@
 # Production Fine-Tuning Guide for LIBERO
 
-## Root Cause Analysis: Why Evaluation Was 0%
+## Root Cause Analysis: Why Initial Evaluation Was 0%
 
 After initial fine-tuning and evaluation, the model achieved **0% success rate** across all LIBERO tasks. Three critical issues were identified:
 
@@ -31,6 +31,64 @@ The LIBERO bridge was concatenating `robot0_joint_pos` (7D) + `robot0_gripper_qp
 
 ---
 
+## LIBERO Dataset Conversion Pipeline
+
+### Overview
+
+LIBERO datasets come in HDF5 format. We convert them to RLDS TFRecord format compatible with OpenVLA-OFT fine-tuning:
+
+```
+LIBERO HDF5 → TFRecord conversion → Custom TFRecord reader → OpenVLA-OFT training
+```
+
+### Conversion Script
+
+```bash
+cd /home/rowel/sandbox/openvla-oft
+
+# Convert all LIBERO suites to RLDS format
+python scripts/convert_libero_to_rlds_v2.py \
+    --libero_data_dir /home/rowel/sandbox/LIBERO/libero/datasets \
+    --output_dir datasets/rlds \
+    --suites libero_spatial libero_object libero_goal libero_10
+```
+
+### TFRecord Format
+
+Each trajectory is stored as a single TFExample with:
+- `observation/image_primary`: Raw bytes (T, 256, 256, 3) — third-person camera
+- `observation/image_wrist`: Raw bytes (T, 256, 256, 3) — wrist camera
+- `observation/proprio`: Float32 (T, 8) — 7 joint angles + 1 gripper width
+- `observation/timestep`: Int64 (T)
+- `action`: Float32 (T, 7) — delta EE pose (dx, dy, dz, droll, dpitch, dyaw, gripper)
+- `task/language_instruction`: String — task description
+- `dataset_name`: String
+- `num_steps`: Int64
+
+### Custom Reader
+
+`prismatic/vla/datasets/rlds/libero_reader.py` provides a custom TFRecord reader that:
+- Reads TFRecords directly using `tf.data.TFRecordDataset`
+- Wraps the result as a `dlimp.DLataset` hybrid class
+- Parses images, proprioception, actions, and language instructions
+- Handles both versioned (`1.0.0/`) and flat directory structures
+
+### Dataset Config Changes
+
+`prismatic/vla/datasets/rlds/oxe/configs.py` was updated for all LIBERO datasets:
+- `image_obs_keys`: `{"primary": "image_primary", "wrist": "image_wrist"}` (was `image`/`wrist_image`)
+- `state_obs_keys`: `["proprio"]` (was `["EEF_state", "gripper_state"]`)
+- `state_encoding`: `StateEncoding.JOINT` (was `StateEncoding.POS_EULER`)
+
+### Transform Changes
+
+`prismatic/vla/datasets/rlds/oxe/transforms.py` was updated to handle the custom TFRecord format:
+- Detects `proprio` key in observation
+- Adds `EEF_state` and `gripper_state` for backward compatibility
+- Skips action inversion (actions are already in correct format)
+
+---
+
 ## Production Fine-Tuning Setup
 
 ### Prerequisites
@@ -47,7 +105,7 @@ The LIBERO bridge was concatenating `robot0_joint_pos` (7D) + `robot0_gripper_qp
    ls /home/rowel/sandbox/openvla-oft/weights/openvla-7b/
    ```
 
-3. **GPU with ≥24GB VRAM** (RTX 3090/4090/5090 recommended)
+3. **GPU with ≥24GB VRAM** (RTX 3090/4090/5090/A100 recommended)
 
 ### Training Commands
 
@@ -74,23 +132,23 @@ python scripts/run_libero_finetune.py \
     --save-freq 10000 \
     --batch-size 1 \
     --lr 0.0005 \
-    --lora-rank 64
+    --lora-rank 32
 ```
 
-**Expected:** ~11 hours, saves checkpoints every 10,000 steps.
+**Expected:** ~42 hours on single A100, saves checkpoints every 10,000 steps.
 
 #### All Task Suites
 
 ```bash
-# Train on all 5 LIBERO suites sequentially
-for suite in libero_spatial libero_object libero_goal libero_10 libero_90; do
+# Train on all 4 LIBERO suites sequentially
+for suite in libero_spatial libero_object libero_goal libero_10; do
     python scripts/run_libero_finetune.py \
         --suite $suite \
         --max-steps 150000 \
         --save-freq 10000 \
         --batch-size 1 \
         --lr 0.0005 \
-        --lora-rank 64
+        --lora-rank 32
 done
 ```
 
@@ -103,10 +161,11 @@ done
 | `--save-freq` | 10000 | 10000 | Checkpoint save interval |
 | `--batch-size` | 1 | 1 | Batch size (VRAM-limited) |
 | `--lr` | 0.0005 | 0.0005 | Learning rate |
-| `--lora-rank` | 64 | 64 | LoRA adapter rank |
+| `--lora-rank` | 32 | 32 | LoRA adapter rank |
 | `--lora-alpha` | 16 | 16 | LoRA scaling factor |
 | `--lora-dropout` | 0.0 | 0.0 | LoRA dropout rate |
-| `--image-aug` | off | off | Image augmentation |
+| `--image-aug` | on | on | Image augmentation |
+| `--port` | 29501 | 29501 | Master port for distributed training |
 
 ### Architecture
 
@@ -130,13 +189,13 @@ OpenVLA-7B (frozen)
 1. **Locate your checkpoint:**
    ```bash
    ls checkpoints/openvla-7b+libero_spatial_no_noops+*/
-   # Find the latest checkpoint directory (e.g., checkpoint-5000, checkpoint-10000)
+   # Find the latest checkpoint directory (e.g., checkpoint-10000, checkpoint-150000)
    ```
 
 2. **Start the VLA server with your checkpoint:**
    ```bash
    python scripts/run_vla_server.py \
-       --checkpoint /home/rowel/sandbox/isaac-vla/checkpoints/openvla-7b+libero_spatial_no_noops+b1+lr-0.0005+lora-r64+dropout-0.0--image_aug--libero_spatial_ft_lora64_bs1/checkpoint-10000/
+       --checkpoint /path/to/checkpoint-150000/
    ```
 
 3. **Run evaluation:**
@@ -208,6 +267,7 @@ Format:
 1. **Out of memory:** Reduce batch size to 1 or use gradient accumulation
 2. **NaN losses:** Reduce learning rate to 1e-4
 3. **Slow training:** Check GPU utilization with `nvidia-smi`
+4. **TFDS builder not found:** This is expected — the custom TFRecord reader handles this automatically
 
 ### Evaluation Crashes
 
@@ -215,17 +275,38 @@ Format:
 2. **LIBERO files missing:** Run `python benchmark_scripts/download_libero_datasets.py`
 3. **BDDL file errors:** Ensure `task_suite.get_task_bddl_file_path()` is used (not manual path construction)
 
+### TFRecord Conversion Issues
+
+1. **HDF5 files missing:** Ensure LIBERO datasets are downloaded first
+2. **Memory errors during conversion:** Convert one suite at a time
+3. **Image shape mismatch:** Verify conversion script uses correct image keys (`agentview_rgb`, `eye_in_hand_rgb`)
+
 ---
 
 ## Monitoring Training
 
 ```bash
-# Live progress
-tail -f checkpoints/openvla-7b+libero_spatial_no_noops+*/train.log
+# Live progress (check the managed process logs)
+# Training is running as a background process
 
 # GPU utilization
 nvidia-smi
 
 # Checkpoint sizes
 du -sh checkpoints/openvla-7b+libero_spatial_no_noops+*/checkpoint-*/
+
+# Check training log
+tail -f checkpoints/openvla-7b+libero_spatial_no_noops+*/train.log
 ```
+
+---
+
+## Current Training Status (2026-05-04)
+
+- **Suite:** `libero_spatial_no_noops`
+- **Steps:** 0/150,000 (in progress)
+- **GPU:** CUDA:0 (NVIDIA A100-SXM4-40GB)
+- **Speed:** ~1 step/second
+- **ETA:** ~42 hours
+- **Checkpoint interval:** Every 10,000 steps
+- **Checkpoint dir:** `checkpoints/openvla-7b+libero_spatial_no_noops+b1+lr-0.0005+lora-r32+dropout-0.0--image_aug--libero_spatial_ft_lora32/`
