@@ -229,6 +229,50 @@ class VLAServer:
         }
         return self._oft_imports
 
+    def _load_component_from_checkpoint(self, component_name: str, checkpoint_dir: str, component_module, dtype=torch.bfloat16):
+        """Load a component (action_head or proprio_projector) from a local checkpoint file.
+
+        This bypasses the openvla_utils loading logic which can fail for local checkpoints
+        due to HF Hub API calls or dtype mismatches.
+
+        Args:
+            component_name: Name prefix to search for (e.g., "action_head", "proprio_projector")
+            checkpoint_dir: Path to the checkpoint directory
+            component_module: The initialized component module to load weights into
+            dtype: Target dtype for the loaded weights
+
+        Returns:
+            The component module with loaded weights, or None if loading failed
+        """
+        # Find checkpoint file matching pattern
+        checkpoint_file = None
+        for filename in os.listdir(checkpoint_dir):
+            if component_name in filename and "checkpoint" in filename and filename.endswith(".pt"):
+                checkpoint_file = os.path.join(checkpoint_dir, filename)
+                break
+
+        if checkpoint_file is None:
+            logger.warning(f"No {component_name} checkpoint found in {checkpoint_dir}")
+            return None
+
+        logger.info(f"Loading {component_name} from: {checkpoint_file}")
+        try:
+            state_dict = torch.load(checkpoint_file, map_location="cpu", weights_only=True)
+
+            # Handle DDP prefix if present
+            cleaned_state_dict = {}
+            for k, v in state_dict.items():
+                key = k.replace("module.", "", 1) if k.startswith("module.") else k
+                # Convert dtype to match the component
+                cleaned_state_dict[key] = v.to(dtype)
+
+            component_module.load_state_dict(cleaned_state_dict, strict=True)
+            logger.info(f"Successfully loaded {component_name} ({len(cleaned_state_dict)} parameters)")
+            return component_module
+        except Exception as e:
+            logger.error(f"Failed to load {component_name} from {checkpoint_file}: {e}")
+            return None
+
     def load_model(self):
         """Load the OpenVLA-OFT model and components."""
         logger.info(f"Loading OpenVLA-OFT model: {self.config.pretrained_checkpoint}")
@@ -259,22 +303,65 @@ class VLAServer:
             unnorm_key=self.config.unnorm_key,
         )
 
+        # Determine if this is a local checkpoint directory
+        checkpoint_dir = self.config.pretrained_checkpoint
+        is_local_checkpoint = os.path.isdir(checkpoint_dir)
+
         # Load model components
         logger.info("Loading VLA backbone...")
         self.vla = get_vla(cfg)
         logger.info("Loading processor...")
         self.processor = get_processor(cfg)
+
+        # Load LoRA adapter if present in local checkpoint
+        if is_local_checkpoint:
+            lora_adapter_dir = os.path.join(checkpoint_dir, "lora_adapter")
+            if os.path.isdir(lora_adapter_dir) and os.path.exists(os.path.join(lora_adapter_dir, "adapter_model.safetensors")):
+                logger.info(f"Loading LoRA adapter from: {lora_adapter_dir}")
+                try:
+                    from peft import PeftModel
+                    self.vla = PeftModel.from_pretrained(self.vla, lora_adapter_dir)
+                    logger.info("LoRA adapter loaded successfully")
+                except Exception as e:
+                    logger.warning(f"Failed to load LoRA adapter: {e}. Continuing without adapter.")
+
+        # Load action head
         logger.info("Loading action head...")
         self.action_head = get_action_head(cfg, llm_dim=self.vla.llm_dim)
+
+        # Verify action head was loaded from checkpoint (not random weights)
+        if is_local_checkpoint:
+            # Double-check by loading directly from checkpoint file
+            action_head_loaded = self._load_component_from_checkpoint(
+                "action_head", checkpoint_dir, self.action_head
+            )
+            if action_head_loaded is None:
+                logger.error("WARNING: Action head may contain random weights! Check checkpoint directory.")
+
+        # Load proprio projector
         logger.info("Loading proprio projector...")
         self.proprio_projector = get_proprio_projector(
             cfg, llm_dim=self.vla.llm_dim, proprio_dim=PROPRIO_DIM
         )
 
+        # Verify proprio projector was loaded from checkpoint (not random weights)
+        if is_local_checkpoint:
+            proprio_loaded = self._load_component_from_checkpoint(
+                "proprio_projector", checkpoint_dir, self.proprio_projector
+            )
+            if proprio_loaded is None:
+                logger.error("WARNING: Proprio projector may contain random weights! Check checkpoint directory.")
+
         # Move to device
         self.vla = self.vla.to(self.config.device)
         self.action_head = self.action_head.to(self.config.device)
         self.proprio_projector = self.proprio_projector.to(self.config.device)
+
+        # Log loading summary
+        logger.info(f"VLA model loaded: {type(self.vla).__name__}")
+        logger.info(f"Action head loaded: {type(self.action_head).__name__}")
+        logger.info(f"Proprio projector loaded: {type(self.proprio_projector).__name__}")
+        logger.info(f"Checkpoint type: {'local' if is_local_checkpoint else 'HF Hub'}")
 
         elapsed = time.time() - start_time
         logger.info(f"Model loaded in {elapsed:.1f}s on {self.config.device}")
