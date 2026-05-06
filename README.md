@@ -13,6 +13,7 @@ A complete system for deploying [OpenVLA-OFT](https://github.com/moojink/openvla
 - [Evaluation](#evaluation)
   - [VLA Server Commands](#vla-server-commands)
   - [Evaluation Commands](#evaluation-commands)
+  - [Video Recording](#video-recording)
   - [Evaluation Options](#evaluation-options)
   - [Evaluation Output](#evaluation-output)
   - [Understanding the Evaluation Pipeline](#understanding-the-evaluation-pipeline)
@@ -435,6 +436,82 @@ python scripts/run_libero_eval.py \
 ```
 
 > **Note**: Embedded mode loads the model directly into the evaluation process. This uses more GPU memory but eliminates HTTP overhead.
+
+---
+
+### Video Recording
+
+The evaluation script supports recording video of each episode. Videos are saved as MP4 files using `imageio` at 10 FPS.
+
+#### Enable Video Recording
+
+Add the `--record-video` flag to any evaluation command:
+
+```bash
+# Record video for a single task
+python scripts/run_libero_eval.py \
+    --task-suite libero_spatial \
+    --task-id 0 \
+    --num-episodes 10 \
+    --record-video
+
+# Record video for all tasks in a suite
+python scripts/run_libero_eval.py \
+    --task-suite libero_spatial \
+    --all-tasks \
+    --num-episodes 10 \
+    --record-video
+
+# Record video for all suites
+python scripts/run_libero_eval.py \
+    --all-suites \
+    --all-tasks \
+    --num-episodes 10 \
+    --record-video
+```
+
+#### Video Output
+
+Videos are saved to `data/libero_videos/` with the naming convention:
+
+```
+data/libero_videos/
+├── episode_0_pick_up_the_black_bowl_between_the_plate_and_the_ramekin_and_place_it_on_the_plate.mp4
+├── episode_1_pick_up_the_black_bowl_between_the_plate_and_the_ramekin_and_place_it_on_the_plate.mp4
+├── episode_2_pick_up_the_black_bowl_between_the_plate_and_the_ramekin_and_place_it_on_the_plate.mp4
+└── ...
+```
+
+Each video contains:
+- **Frames**: Third-person camera observations (224×224, resized from 256×256)
+- **FPS**: 10 frames per second
+- **Format**: MP4 (H.264 via imageio)
+- **Quality**: 8/10 (balanced file size vs quality)
+
+#### Video Recording Pipeline
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌──────────────────┐
+│  LIBERO Env     │    │  Video Frames    │    │  MP4 File        │
+│  (MuJoCo)       │───►│  (deque)         │───►│  (imageio)       │
+│                 │    │  224×224 RGB     │    │  10 FPS          │
+│  Observation    │    │  Each VLA step   │    │  quality=8       │
+└─────────────────┘    └──────────────────┘    └──────────────────┘
+```
+
+1. **Capture**: At each VLA query step, the third-person camera image is captured
+2. **Store**: Frames are appended to an in-memory deque
+3. **Save**: At episode end, frames are encoded to MP4 using `imageio.mimwrite()`
+
+#### Dependencies
+
+Video recording requires `imageio` and `imageio-ffmpeg`:
+
+```bash
+pip install imageio imageio-ffmpeg
+```
+
+If `imageio` is not installed, the evaluation will continue without recording videos (a warning will be logged).
 
 ---
 
