@@ -86,15 +86,15 @@ def load_and_process_episode(hdf5_path, demo_idx, target_size=256):
             agentview_images = demo["obs"]["agentview_rgb"][()]
             wrist_images = demo["obs"]["eye_in_hand_rgb"][()]
             actions = demo["actions"][()]
-            joint_states = demo["obs"]["joint_states"][()]
-            gripper_states = demo["obs"]["gripper_states"][()]
+            eef_pos = demo["obs"]["ee_pos"][()]  # (T, 3) - end-effector position
+            eef_ori = demo["obs"]["ee_ori"][()]  # (T, 3) - end-effector orientation (axis-angle)
+            gripper_states = demo["obs"]["gripper_states"][()]  # (T, 2)
 
-            # Handle gripper states - may be (T, 1) or (T, 2), take first column
-            if gripper_states.shape[1] > 1:
-                gripper_states = gripper_states[:, :1]
-
-            # Build proprioception: joint states (7) + gripper (1) = 8D
-            proprio = np.concatenate([joint_states, gripper_states], axis=1).astype(np.float32)
+            # Build proprioception: eef_pos (3) + eef_ori axis-angle (3) + gripper (2) = 8D
+            # This matches the reference evaluation code which uses:
+            #   np.concatenate((obs["robot0_eef_pos"], quat2axisangle(obs["robot0_eef_quat"]), obs["robot0_gripper_qpos"]))
+            # The HDF5 ee_ori is already in axis-angle format (same as quat2axisangle of robot0_eef_quat)
+            proprio = np.concatenate([eef_pos, eef_ori, gripper_states], axis=1).astype(np.float32)
 
             # Rotate images 180 degrees and resize using TensorFlow
             num_steps = len(actions)

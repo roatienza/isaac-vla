@@ -32,6 +32,7 @@ https://github.com/roatienza/openvla-oft/experiments/robot/libero/
 
 import json
 import logging
+import math
 import os
 import sys
 import time
@@ -49,6 +50,37 @@ from src.utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+# ─── Quaternion to Axis-Angle Conversion ─────────────────────────────────────
+
+
+def quat2axisangle(quat: np.ndarray) -> np.ndarray:
+    """
+    Convert quaternion to axis-angle format.
+
+    Copied from robosuite:
+    https://github.com/ARISE-Initiative/robosuite/blob/eafb81f54ffc104f905ee48a16bb15f059176ad3/robosuite/utils/transform_utils.py#L490C1-L512C55
+
+    Args:
+        quat: (x, y, z, w) quaternion
+
+    Returns:
+        (ax, ay, az) axis-angle exponential coordinates
+    """
+    # Clip quaternion w component
+    if quat[3] > 1.0:
+        quat[3] = 1.0
+    elif quat[3] < -1.0:
+        quat[3] = -1.0
+
+    den = np.sqrt(1.0 - quat[3] * quat[3])
+    if math.isclose(den, 0.0):
+        # This is (close to) a zero degree rotation, immediately return
+        return np.zeros(3)
+
+    return (quat[:3] * 2.0 * math.acos(quat[3])) / den
+
 
 # ──── Task Suite Constants ─────────────────────────────────────────────────────
 
@@ -279,14 +311,15 @@ class LIBEROBridge:
             else:
                 wrist_image = wrist_image.astype(np.uint8)
 
-        # Get proprioception state (8D: 7 joint positions + 1 gripper width)
-        # CRITICAL: OpenVLA-OFT expects exactly 8D state
-        # robot0_gripper_qpos may return 4 values in some robosuite versions
-        # We only need the first value (gripper width)
-        state = np.concatenate([
-            obs["robot0_joint_pos"][:7],       # 7D joint positions
-            obs["robot0_gripper_qpos"][:1],    # 1D gripper width (first value only)
-        ]).astype(np.float32)
+        # Get proprioception state (8D: EEF pos + EEF orientation + gripper)
+        # CRITICAL: Must match training data format exactly!
+        # Reference: obs["robot0_eef_pos"] + quat2axisangle(obs["robot0_eef_quat"]) + obs["robot0_gripper_qpos"]
+        eef_pos = obs["robot0_eef_pos"]  # 3D: x, y, z
+        eef_quat = obs["robot0_eef_quat"]  # 4D: quaternion (x, y, z, w)
+        eef_axis_angle = quat2axisangle(eef_quat)  # 3D: axis-angle rotation
+        gripper_qpos = obs["robot0_gripper_qpos"]  # 2D: gripper positions
+        
+        state = np.concatenate([eef_pos, eef_axis_angle, gripper_qpos]).astype(np.float32)
 
         return {
             "full_image": full_image,
