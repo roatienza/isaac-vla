@@ -11,9 +11,12 @@ A complete system for deploying [OpenVLA-OFT](https://github.com/moojink/openvla
 - [Environment & Data Preparation](#environment--data-preparation)
 - [VLA Fine-Tuning](#vla-fine-tuning)
 - [Evaluation](#evaluation)
-  - [Evaluation with VLA Server (HTTP Mode)](#evaluation-with-vla-server-http-mode)
-  - [Evaluation with Embedded Mode (No Server)](#evaluation-with-embedded-mode-no-server)
-  - [Evaluation with Video Recording](#evaluation-with-video-recording)
+  - [VLA Server Commands](#vla-server-commands)
+  - [Evaluation Commands](#evaluation-commands)
+  - [Evaluation Options](#evaluation-options)
+  - [Evaluation Output](#evaluation-output)
+  - [Understanding the Evaluation Pipeline](#understanding-the-evaluation-pipeline)
+  - [Configuration](#configuration)
 - [Using Your Trained Checkpoint](#using-your-trained-checkpoint)
 - [Isaac Sim (Optional)](#isaac-sim-optional)
 - [Project Structure](#project-structure)
@@ -278,81 +281,187 @@ checkpoints/
 
 ## Evaluation
 
-### Evaluation with VLA Server (HTTP Mode)
+Evaluate your fine-tuned OpenVLA-OFT model on LIBERO benchmark tasks. Two modes are supported:
 
-This is the recommended mode for evaluation. The VLA server runs the model in a separate process, and the evaluation script communicates via HTTP.
+| Mode | Description | Use When |
+|------|-------------|----------|
+| **HTTP Mode** (recommended) | VLA server runs in a separate process; evaluation communicates via HTTP | Multi-GPU setups, concurrent evaluations, production deployment |
+| **Embedded Mode** | Model loaded directly in the evaluation script; no server needed | Quick testing, single-GPU setups, development |
 
-**Step 1: Start the VLA Server**
+---
+
+### VLA Server Commands
+
+Start the VLA inference server before running evaluation in HTTP mode.
+
+#### Start with Base Model
 
 ```bash
-# Terminal 1: Start server with base model
+# Default: loads openvla/openvla-7b from Hugging Face
 python scripts/run_vla_server.py
-
-# Or with a fine-tuned checkpoint
-python scripts/run_vla_server.py --checkpoint /path/to/checkpoint-150000/
-
-# Or specify device
-python scripts/run_vla_server.py --device cuda:0
 ```
 
-**Step 2: Run Evaluation**
+#### Start with Fine-Tuned Checkpoint
 
 ```bash
-# Terminal 2: Evaluate single task
-python scripts/run_libero_eval.py --task-suite libero_spatial --task-id 0
+# Load a specific checkpoint (e.g., step 40000)
+python scripts/run_vla_server.py \
+    --checkpoint /path/to/checkpoints/openvla-7b+libero_spatial_no_noops+...--40000_chkpt/
+
+# Specify GPU device
+python scripts/run_vla_server.py \
+    --checkpoint /path/to/checkpoint/ \
+    --device cuda:0
+
+# Specify custom port
+python scripts/run_vla_server.py \
+    --checkpoint /path/to/checkpoint/ \
+    --port 8777
+
+# Skip warmup (faster startup)
+python scripts/run_vla_server.py \
+    --checkpoint /path/to/checkpoint/ \
+    --no-warmup
+
+# Specify openvla-oft root (if not pip-installed)
+python scripts/run_vla_server.py \
+    --checkpoint /path/to/checkpoint/ \
+    --openvla-oft-root /path/to/openvla-oft
+```
+
+#### VLA Server Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--checkpoint` | None | Path to fine-tuned checkpoint directory |
+| `--host` | `0.0.0.0` | Server host address |
+| `--port` | `8777` | Server port |
+| `--device` | `cuda:0` | GPU device (e.g., `cuda:0`, `cuda:1`, `cpu`) |
+| `--no-warmup` | False | Skip model warmup on startup |
+| `--openvla-oft-root` | None | Path to openvla-oft repo root |
+| `--config` | `config/default.yaml` | Path to configuration YAML |
+| `--log-level` | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR) |
+
+#### Health Check
+
+```bash
+# Verify server is running
+curl http://localhost:8777/health
+
+# Get model info
+curl http://localhost:8777/model_info
+```
+
+---
+
+### Evaluation Commands
+
+#### HTTP Mode (Recommended)
+
+**Terminal 1: Start VLA Server**
+```bash
+python scripts/run_vla_server.py --checkpoint /path/to/checkpoint/
+```
+
+**Terminal 2: Run Evaluation**
+```bash
+# Evaluate a single task
+python scripts/run_libero_eval.py \
+    --task-suite libero_spatial \
+    --task-id 0 \
+    --num-episodes 10
 
 # Evaluate all tasks in a suite
-python scripts/run_libero_eval.py --task-suite libero_spatial --all-tasks
-
-# Evaluate all tasks with 10 episodes each
-python scripts/run_libero_eval.py --task-suite libero_spatial --all-tasks --num-episodes 10
+python scripts/run_libero_eval.py \
+    --task-suite libero_spatial \
+    --all-tasks \
+    --num-episodes 10
 
 # Evaluate all suites
-python scripts/run_libero_eval.py --all-suites --num-episodes 5
-
-# Custom output directory
-python scripts/run_libero_eval.py --task-suite libero_spatial --task-id 0 --output-dir ./results
+python scripts/run_libero_eval.py \
+    --all-suites \
+    --all-tasks \
+    --num-episodes 10
 
 # Custom VLA server URL
-python scripts/run_libero_eval.py --vla-server http://localhost:8777
+python scripts/run_libero_eval.py \
+    --task-suite libero_spatial \
+    --all-tasks \
+    --vla-server http://localhost:8777
+
+# Custom output directory
+python scripts/run_libero_eval.py \
+    --task-suite libero_spatial \
+    --all-tasks \
+    --output-dir ./results
+
+# Record video during evaluation
+python scripts/run_libero_eval.py \
+    --task-suite libero_spatial \
+    --all-tasks \
+    --record-video
+
+# Full evaluation with all options
+python scripts/run_libero_eval.py \
+    --task-suite libero_spatial \
+    --all-tasks \
+    --num-episodes 20 \
+    --vla-server http://localhost:8777 \
+    --record-video \
+    --output-dir data/libero_results \
+    --log-level INFO
 ```
 
-### Evaluation with Embedded Mode (No Server)
-
-In embedded mode, the model is loaded directly in the evaluation script. No separate server process is needed.
+#### Embedded Mode (No Server)
 
 ```bash
-# Evaluate with embedded mode
-python scripts/run_libero_eval.py --embedded --task-suite libero_spatial --task-id 0
+# Evaluate single task (model loaded directly)
+python scripts/run_libero_eval.py \
+    --embedded \
+    --task-suite libero_spatial \
+    --task-id 0
 
-# Evaluate all tasks in embedded mode
-python scripts/run_libero_eval.py --embedded --task-suite libero_spatial --all-tasks
+# Evaluate all tasks in a suite
+python scripts/run_libero_eval.py \
+    --embedded \
+    --task-suite libero_spatial \
+    --all-tasks
 
-# Evaluate all suites in embedded mode
-python scripts/run_libero_eval.py --embedded --all-suites --num-episodes 5
+# Evaluate all suites
+python scripts/run_libero_eval.py \
+    --embedded \
+    --all-suites \
+    --num-episodes 5
 ```
 
-### Evaluation with Video Recording
+> **Note**: Embedded mode loads the model directly into the evaluation process. This uses more GPU memory but eliminates HTTP overhead.
 
-Record video frames during evaluation for analysis and debugging.
+---
 
-```bash
-# Record video for single task
-python scripts/run_libero_eval.py --task-suite libero_spatial --task-id 0 --record-video
+### Evaluation Options
 
-# Record video for all tasks in a suite
-python scripts/run_libero_eval.py --task-suite libero_spatial --all-tasks --record-video
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--task-suite` | `libero_spatial` | LIBERO task suite (spatial, object, goal, 10, 90) |
+| `--task-id` | `0` | Task ID within suite (0-9 for standard suites) |
+| `--all-tasks` | False | Evaluate all tasks in the specified suite |
+| `--all-suites` | False | Evaluate all LIBERO suites |
+| `--num-episodes` | `10` | Number of episodes per task |
+| `--max-steps` | Auto | Maximum steps per episode (auto from TASK_MAX_STEPS) |
+| `--vla-server` | `http://localhost:8777` | URL of the VLA server |
+| `--embedded` | False | Use embedded mode (no HTTP server) |
+| `--record-video` | False | Record video frames during evaluation |
+| `--output-dir` | `data/libero_results` | Directory to save results |
+| `--config` | `config/default.yaml` | Path to configuration YAML |
+| `--log-level` | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR) |
 
-# Record video for all suites
-python scripts/run_libero_eval.py --all-suites --record-video --num-episodes 5
-```
-
-Videos are saved to the output directory (default: `data/libero_results/`).
+---
 
 ### Evaluation Output
 
-Results are saved to `data/libero_results/evaluation_results.json`:
+Results are saved to `{output-dir}/evaluation_results.json`:
 
+**Single task result:**
 ```json
 {
   "libero_spatial": {
@@ -367,7 +476,7 @@ Results are saved to `data/libero_results/evaluation_results.json`:
 }
 ```
 
-For suite-level evaluation:
+**Suite-level result (all tasks):**
 ```json
 {
   "libero_spatial": {
@@ -380,24 +489,26 @@ For suite-level evaluation:
 }
 ```
 
+---
+
 ### Understanding the Evaluation Pipeline
 
 ```
-┌─────────────────┐    HTTP     ┌─────────────────────┐
-│  VLA Server      │◄──────────►│  LIBERO Bridge       │
+┌──────────────────┐    HTTP     ┌──────────────────┐
+│  VLA Server      │◄───────────►│  LIBERO Bridge       │
 │                  │            │                      │
 │ OpenVLA-OFT 7B   │            │ MuJoCo Env           │
 │ (L1 Regression)  │            │ Franka Robot         │
 │                  │            │ 3P + Wrist Cam       │
-└─────────────────┘            └─────────────────────┘
+└──────────────────┘            └──────────────────┘
                                     │
                                     ▼
-                           ┌─────────────────────┐
+                           ┌──────────────────┐
                            │  Observation        │
                            │  224×224 images     │
                            │  8D proprio         │
                            │  Task language       │
-                           └─────────────────────┘
+                           └──────────────────┘
 ```
 
 1. **Reset**: Environment resets with random initial state from task suite
@@ -406,6 +517,8 @@ For suite-level evaluation:
 4. **Query VLA**: Send images + language instruction + state to VLA server
 5. **Execute**: Apply 8 predicted delta EE actions open-loop
 6. **Repeat**: Until task success or max steps reached
+
+---
 
 ### Configuration
 
