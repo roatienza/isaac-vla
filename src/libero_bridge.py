@@ -297,31 +297,42 @@ class LIBEROBridge:
     def _process_action(self, action: np.ndarray) -> np.ndarray:
         """Process action for LIBERO environment.
 
+        Matches the reference OpenVLA-OFT evaluation pipeline:
+        1. Normalize gripper from [0,1] to [-1,+1]
+        2. Invert gripper sign (LIBERO convention: +1=close, -1=open)
+
         Args:
             action: 7D action [dx, dy, dz, droll, dpitch, dyaw, gripper]
 
         Returns:
             Processed action ready for LIBERO environment
         """
-        # Clip action magnitude for safety
-        clipped = clip_action_magnitude(
-            action,
-            max_position=self.max_position_delta,
-            max_rotation=self.max_rotation_delta,
-        )
+        processed = action.copy().astype(np.float64)
 
-        # Normalize gripper action from [0,1] to [-1,1] for LIBERO
-        # Reference: https://github.com/roatienza/openvla-oft/experiments/robot/robot_utils.py
+        # Step 1: Normalize gripper action from [0,1] to [-1,1]
+        # Reference: experiments/robot/robot_utils.py :: normalize_gripper_action()
         orig_low, orig_high = 0.0, 1.0
-        clipped[6] = 2 * (clipped[6] - orig_low) / (orig_high - orig_low) - 1
+        processed[6] = 2 * (processed[6] - orig_low) / (orig_high - orig_low) - 1
 
-        # Ensure gripper is in valid range [-1, 1] for LIBERO
-        clipped[6] = np.clip(clipped[6], -1.0, 1.0)
+        # Step 2: Binarize gripper to -1 or +1 (matches reference implementation)
+        # Reference: normalize_gripper_action(binarize=True)
+        processed[6] = np.sign(processed[6])
 
-        return clipped
+        # Step 3: Invert gripper action sign
+        # Reference: experiments/robot/robot_utils.py :: invert_gripper_action()
+        # LIBERO/Robosuite convention: +1 = close, -1 = open
+        # Dataset convention (after RLDS): 0 = close, 1 = open
+        # After normalization: -1 = close, +1 = open → need to flip
+        processed[6] *= -1.0
+
+        return processed
 
     def _get_dummy_action(self) -> np.ndarray:
-        """Get dummy/no-op action for stabilization."""
+        """Get dummy/no-op action for stabilization.
+        
+        Matches reference: experiments/robot/libero/libero_utils.py :: get_libero_dummy_action()
+        Gripper = -1 (open) to avoid accidentally closing on objects during stabilization.
+        """
         return np.array([0, 0, 0, 0, 0, 0, -1], dtype=np.float64)
 
     def run_episode(
