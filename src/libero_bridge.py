@@ -417,14 +417,15 @@ class LIBEROBridge:
                     t += 1
                     continue
 
+                # Record video frame at every step (not just VLA query steps)
+                if self._recording:
+                    video_obs = self._capture_observation(obs)
+                    self._video_frames.append(video_obs["full_image"])
+
                 # If action queue is empty, requery VLA
                 if len(self._action_queue) == 0:
                     # Capture observation before querying VLA
                     observation = self._capture_observation(obs)
-
-                    # Record video frame if enabled
-                    if self._recording:
-                        self._video_frames.append(observation["full_image"])
 
                     result = self._query_vla(observation, instruction)
                     if result is not None and "actions" in result:
