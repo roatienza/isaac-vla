@@ -342,20 +342,23 @@ class LIBEROBridge:
         """
         processed = action.copy().astype(np.float64)
 
-        # Step 1: Normalize gripper action from [0,1] to [-1,1]
-        # Reference: experiments/robot/robot_utils.py :: normalize_gripper_action()
-        orig_low, orig_high = 0.0, 1.0
-        processed[6] = 2 * (processed[6] - orig_low) / (orig_high - orig_low) - 1
+        # CRITICAL: The dataset statistics have mask=false for gripper (index 6),
+        # meaning gripper was NOT normalized during training or inference.
+        # The model outputs gripper values directly in [-1, +1] range as stored in the dataset.
+        #
+        # Dataset convention: -1 = open, +1 = close
+        # LIBERO/Robosuite convention: +1 = close, -1 = open
+        # So we just need to binarize and invert the sign.
+        #
+        # DO NOT normalize from [0,1] to [-1,1] - that was the bug causing 0% success!
 
-        # Step 2: Binarize gripper to -1 or +1 (matches reference implementation)
-        # Reference: normalize_gripper_action(binarize=True)
+        # Step 1: Binarize gripper to -1 or +1
         processed[6] = np.sign(processed[6])
 
-        # Step 3: Invert gripper action sign
-        # Reference: experiments/robot/robot_utils.py :: invert_gripper_action()
-        # LIBERO/Robosuite convention: +1 = close, -1 = open
-        # Dataset convention (after RLDS): 0 = close, 1 = open
-        # After normalization: -1 = close, +1 = open → need to flip
+        # Step 2: Invert gripper action sign to match LIBERO convention
+        # Dataset: -1 = open, +1 = close
+        # LIBERO: +1 = close, -1 = open
+        # So we flip the sign
         processed[6] *= -1.0
 
         return processed

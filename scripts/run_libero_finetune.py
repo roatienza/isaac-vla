@@ -97,9 +97,7 @@ def main():
         "--save_latest_checkpoint_only", "False",
         "--image_aug", "True" if IMAGE_AUG else "False",
         "--lora_rank", str(args.lora_rank),
-        "--wandb_entity", "your-wandb-entity",
-        "--wandb_project", "isaac-vla-libero",
-        "--run_id_note", f"{args.suite}_ft_lora32_bs{args.batch_size}",
+        "--run_id_note", f"{args.suite}_ft_lora32_bs{args.batch_size}_ga8",
     ]
 
     # Run directly with python (no torchrun) - PartialState handles single-GPU case
@@ -122,9 +120,11 @@ def main():
 
     # Environment variables
     env = os.environ.copy()
-    env["WANDB_DISABLED"] = "true"
-    env["WANDB_MODE"] = "offline"
+    env["WANDB_DISABLED"] = "1"
+    env["WANDB_MODE"] = "disabled"
     env["WANDB_SILENT"] = "true"
+    # Remove any wandb entity to skip wandb.init entirely
+    # (finetune.py checks: cfg.wandb_entity and not os.environ.get("WANDB_DISABLED"))
     
     if args.offline:
         env["HF_HUB_OFFLINE"] = "true"
