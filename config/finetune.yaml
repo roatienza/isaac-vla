@@ -82,9 +82,9 @@ training:
   lr_warmup_steps: 0
   num_steps_before_decay: 100000  # 10x LR decay after 100K steps
   
-  # Batch size (RTX 5090: 32GB VRAM)
-  batch_size: 1               # ~25GB VRAM per GPU
-  # batch_size: 8             # ~62GB VRAM per GPU (A100/H100)
+  # Batch size (8x A100-SXM4-40GB: 40GB VRAM each)
+  batch_size: 8               # ~62GB VRAM per GPU (A100/H100)
+  # batch_size: 1             # ~25GB VRAM per GPU (RTX 5090: 32GB VRAM)
   gradient_accumulation_steps: 1
   
   # Schedule

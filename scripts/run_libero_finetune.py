@@ -25,7 +25,7 @@ FINETUNE_SCRIPT = OPENVLA_ROOT / "vla-scripts/finetune.py"
 
 # Hyperparameters (from OpenVLA-OFT paper)
 # RTX 5090 has 32GB VRAM - batch_size=1 needs ~25GB
-BATCH_SIZE = 1
+BATCH_SIZE = 8
 LEARNING_RATE = 5e-4
 MAX_STEPS = 150005
 NUM_STEPS_BEFORE_DECAY = 100000
@@ -97,7 +97,7 @@ def main():
         "--save_latest_checkpoint_only", "False",
         "--image_aug", "True" if IMAGE_AUG else "False",
         "--lora_rank", str(args.lora_rank),
-        "--run_id_note", f"{args.suite}_ft_lora32_bs{args.batch_size}_ga8",
+        "--run_id_note", f"{args.suite}_ft_lora32_bs{args.batch_size}",
     ]
 
     # Run directly with python (no torchrun) - PartialState handles single-GPU case
